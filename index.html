@@ -27,6 +27,7 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 .page{display:none;padding:16px;animation:fadeIn .2s ease}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 .market-card{border-radius:24px;padding:20px;margin-bottom:16px;position:relative;overflow:hidden;cursor:pointer}
 .card-gifts{background:linear-gradient(135deg,#4c1d95,#7e22ce)}
 .card-premium{background:linear-gradient(135deg,#0f172a,#1e293b)}
@@ -299,6 +300,16 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
   <button class="btn-primary" onclick="shareInviteLink()">Invite Friends</button>
   <button class="btn-secondary" onclick="copyInviteLink()">Copy Link</button>
   <div style="text-align:center;font-size:11px;color:#52525b;margin-top:12px" id="my-link-display">Generating link...</div>
+
+  <div style="margin-top:28px">
+    <div style="font-size:16px;font-weight:700;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+      <span>Invited Users</span>
+      <span style="font-size:13px;color:#8e8e93;font-weight:500" id="invite-list-count">0 people</span>
+    </div>
+    <div id="invited-list" style="max-height:320px;overflow-y:auto;padding-right:4px">
+      <div style="color:#71717a;font-size:13px;text-align:center;padding:20px;background:#1c1c24;border-radius:12px">No one invited yet</div>
+    </div>
+  </div>
 </div>
 
 <div class="page" id="page-topup">
@@ -337,45 +348,38 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
     <div class="premium-duration">
       <div class="duration-option selected" onclick="selectPremiumDuration('12',this)">
         <div class="duration-radio"></div><div class="duration-name">1 year</div>
-        <div class="duration-price">
-          <span style="text-decoration: line-through; color: #929daa; font-size: 12px; font-weight: 500;">35.94 TON</span>
-          <span class="ton-price" style="color: #65d99b;"><svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg>25.4</span>
-        </div>
+        <div class="duration-price"><span class="ton-price"><svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg> 25.4</span></div>
       </div>
       <div class="duration-option" onclick="selectPremiumDuration('6',this)">
         <div class="duration-radio"></div><div class="duration-name">6 months</div>
-        <div class="duration-price">
-          <span style="text-decoration: line-through; color: #929daa; font-size: 12px; font-weight: 500;">19.96 TON</span>
-          <span class="ton-price" style="color: #65d99b;"><svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg>12.32</span>
-        </div>
+        <div class="duration-price"><span class="ton-price"><svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg> 12.32</span></div>
       </div>
       <div class="duration-option" onclick="selectPremiumDuration('3',this)">
         <div class="duration-radio"></div><div class="duration-name">3 months</div>
-        <div class="duration-price">
-          <span style="text-decoration: line-through; color: #929daa; font-size: 12px; font-weight: 500;">14.97 TON</span>
-          <span class="ton-price" style="color: #65d99b;"><svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg>5.93</span>
-        </div>
+        <div class="duration-price"><span class="ton-price"><svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg> 5.93</span></div>
       </div>
     </div>
   </div>
   <div class="premium-section">
-    <div class="premium-section-title">Payment Method</div>
-    <div class="premium-payment"><div class="payment-option selected"><span class="payment-symbol"><svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg></span>TON · Tonkeeper</div></div>
+    <div class="premium-section-title">Payment method</div>
+    <div class="premium-payment">
+      <div class="payment-option selected">
+        <div class="payment-symbol"><svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg></div>
+        <span>TON Wallet</span>
+      </div>
+    </div>
   </div>
   <button class="premium-buy-btn" id="premium-buy-btn" onclick="buyPremium()">Buy Premium</button>
-  <button class="premium-history-link" onclick="togglePremiumHistory()">View Transactions History</button>
-  <div class="premium-history" id="premium-history"><div class="premium-history-empty">No transactions yet</div></div>
-  <div class="premium-note">After sending payment, your order will remain pending until the transaction is checked. Premium is activated manually by the store administrator.</div>
+  <button class="premium-history-link" onclick="togglePremiumHistory()">View history</button>
+  <div class="premium-history" id="premium-history"></div>
+  <div class="premium-note">Premium will be activated after payment verification.</div>
 </div>
 
 <div class="page" id="page-stars">
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-    <button onclick="showPage('home')" style="background:#2c2c2e;border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">←</button>
-    <h2 class="stars-heading" style="margin:0;">Stars</h2>
-  </div>
+  <div class="stars-heading">Stars</div>
   <div class="stars-grid" id="stars-grid"></div>
   <button class="stars-buy-btn" id="stars-buy-btn" onclick="buyStars()">Buy Stars</button>
-  <div class="stars-note">After payment, Stars will be sent to your account after manual verification by the administrator.</div>
+  <div class="stars-note">Stars will be sent after payment verification.</div>
 </div>
 
 <div class="page" id="page-gifts">
@@ -845,6 +849,7 @@ async function buyStars() {
 
 /* =========================================================
    GIFTS MARKETPLACE LOGIC (Connected to Railway)
+   Progressive Loading + Infinite Scroll (بدون آسیب به بقیه کد)
    ========================================================= */
 const RAILWAY_URL = 'https://gift-store-production.up.railway.app/api/gifts';
 
@@ -852,51 +857,63 @@ let currentGiftFilter = 'all';
 let selectedGift = null;
 let giftQuantity = 1;
 let liveGifts = [];
+let filteredGifts = [];
+let displayedCount = 0;
+const BATCH_SIZE = 24;          // هر بار فقط ۲۴ گیفت رندر می‌شود (سریع و سبک)
+let isLoadingMore = false;
+let giftsObserver = null;
 
-async function renderGifts(filter = 'all') {
-  currentGiftFilter = filter;
-  const grid = document.getElementById('gifts-grid');
+async function fetchGiftsIfNeeded() {
+  if (liveGifts.length > 0) return true;
   
-  if (liveGifts.length === 0) {
-    grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; grid-column: 1/-1;">Loading gifts from Telegram...</div>';
-    try {
-      const response = await fetch(RAILWAY_URL);
-      const data = await response.json();
-      
-      if (data.status !== "success" || !data.data) {
-        throw new Error('Failed to load gifts');
-      }
-
-      liveGifts = data.data.map(gift => {
-        return {
-          id: gift.name, 
-          name: gift.name || 'Gift',
-          price: gift.price,
-          image: gift.image_url, 
-          link: gift.link || '',
-          bg_color: gift.bg_color || 'transparent', 
-          popularity: Math.random() * 100,
-          stock: 100
-        };
-      });
-    } catch (e) {
-      console.error('Error fetching gifts:', e);
-      grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #ff6b6b; grid-column: 1/-1;">Failed to load gifts. Check console.</div>';
-      return;
-    }
-  }
-
-  let filtered = [...liveGifts];
-  if (filter === 'popular') filtered.sort((a, b) => b.popularity - a.popularity);
-  else if (filter === 'cheap') filtered.sort((a, b) => a.price - b.price);
-
-  grid.innerHTML = filtered.map(gift => {
-    const realLink = gift.link || `https://t.me/nft/${gift.name.replace(/ /g, '').replace(/'/g, '')}`;
+  const grid = document.getElementById('gifts-grid');
+  grid.innerHTML = '<div style="text-align:center; padding: 40px 20px; color: #888; grid-column: 1/-1;">Loading gifts from Telegram...</div>';
+  
+  try {
+    const response = await fetch(RAILWAY_URL);
+    const data = await response.json();
     
-    return `
+    if (data.status !== "success" || !data.data) {
+      throw new Error('Failed to load gifts');
+    }
+
+    liveGifts = data.data.map(gift => {
+      return {
+        id: gift.name, 
+        name: gift.name || 'Gift',
+        price: gift.price,
+        image: gift.image_url, 
+        link: gift.link || '',
+        bg_color: gift.bg_color || 'transparent', 
+        popularity: Math.random() * 100,
+        stock: 100
+      };
+    });
+    return true;
+  } catch (e) {
+    console.error('Error fetching gifts:', e);
+    grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #ff6b6b; grid-column: 1/-1;">Failed to load gifts. Check console.</div>';
+    return false;
+  }
+}
+
+function applyGiftFilter(filter) {
+  currentGiftFilter = filter;
+  filteredGifts = [...liveGifts];
+  
+  if (filter === 'popular') {
+    filteredGifts.sort((a, b) => b.popularity - a.popularity);
+  } else if (filter === 'cheap') {
+    filteredGifts.sort((a, b) => a.price - b.price);
+  }
+}
+
+function createGiftCardHTML(gift) {
+  const realLink = gift.link || `https://t.me/nft/${gift.name.replace(/ /g, '').replace(/'/g, '')}`;
+  
+  return `
     <div class="gift-card" onclick="openGiftModal('${gift.id}')">
       <div class="gift-image-wrapper" style="background: ${gift.bg_color || '#1c1c1e'};">
-        <!-- استفاده از Lazy Load و تلاش مجدد در صورت خطا -->
         <img src="${gift.image}" alt="${gift.name}" 
              loading="lazy" 
              decoding="async" 
@@ -918,8 +935,85 @@ async function renderGifts(filter = 'all') {
         </button>
       </div>
     </div>
-    `;
-  }).join('');
+  `;
+}
+
+function appendNextBatch() {
+  if (isLoadingMore || displayedCount >= filteredGifts.length) return;
+  
+  isLoadingMore = true;
+  
+  // حذف لودر قبلی
+  const oldLoader = document.getElementById('gifts-loader');
+  if (oldLoader) oldLoader.remove();
+  
+  const grid = document.getElementById('gifts-grid');
+  const nextBatch = filteredGifts.slice(displayedCount, displayedCount + BATCH_SIZE);
+  
+  const html = nextBatch.map(createGiftCardHTML).join('');
+  grid.insertAdjacentHTML('beforeend', html);
+  
+  displayedCount += nextBatch.length;
+  
+  // اگر هنوز گیفت باقی مانده، لودر بگذار
+  if (displayedCount < filteredGifts.length) {
+    grid.insertAdjacentHTML('beforeend', `
+      <div id="gifts-loader" style="grid-column: 1 / -1; text-align: center; padding: 28px 20px; color: #888;">
+        <div style="display:inline-block;width:26px;height:26px;border:3px solid #333;border-top-color:#8b5cf6;border-radius:50%;animation:spin 0.75s linear infinite;"></div>
+        <div style="margin-top:10px;font-size:13px;">Loading more gifts...</div>
+      </div>
+    `);
+  }
+  
+  isLoadingMore = false;
+  setupGiftsObserver();
+}
+
+function setupGiftsObserver() {
+  if (giftsObserver) {
+    giftsObserver.disconnect();
+    giftsObserver = null;
+  }
+  
+  const loader = document.getElementById('gifts-loader');
+  if (!loader) return;
+  
+  giftsObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !isLoadingMore && displayedCount < filteredGifts.length) {
+      appendNextBatch();
+    }
+  }, { 
+    root: null, 
+    rootMargin: '300px',  // کمی زودتر لود کن تا حس روان بودن بده
+    threshold: 0.1 
+  });
+  
+  giftsObserver.observe(loader);
+}
+
+async function renderGifts(filter = 'all') {
+  const ok = await fetchGiftsIfNeeded();
+  if (!ok) return;
+  
+  applyGiftFilter(filter);
+  
+  const grid = document.getElementById('gifts-grid');
+  grid.innerHTML = '';
+  displayedCount = 0;
+  isLoadingMore = false;
+  
+  if (giftsObserver) {
+    giftsObserver.disconnect();
+    giftsObserver = null;
+  }
+  
+  if (filteredGifts.length === 0) {
+    grid.innerHTML = '<div style="text-align:center; padding: 40px; color: #888; grid-column: 1/-1;">No gifts found.</div>';
+    return;
+  }
+  
+  // اولین بچ رو فوری نشان بده
+  appendNextBatch();
 }
 
 function filterGifts(type, btnElement) {
@@ -1026,47 +1120,92 @@ async function buyGift() {
 }
 
 /* =========================================================
-   INVITE LOGIC
+   INVITE LOGIC (Improved - shows invited list + count)
    ========================================================= */
 const urlParams = new URLSearchParams(window.location.search);
-const referrerId = urlParams.get('ref');
 
-if (referrerId && user && user.id) {
-  if (referrerId != user.id) {
-    let inviterData = JSON.parse(localStorage.getItem('inviter_info') || 'null');
-    if (!inviterData) {
-      inviterData = {
-        id: referrerId,
-        name: tg?.initDataUnsafe?.user?.first_name || 'User',
-        username: tg?.initDataUnsafe?.user?.username ? '@' + tg.initDataUnsafe.user.username : 'Unknown'
-      };
-      localStorage.setItem('inviter_info', JSON.stringify(inviterData));
-    }
+// تشخیص پارامتر رفرال از تلگرام (start_param) یا URL
+let referrerId = null;
+if (tg?.initDataUnsafe?.start_param) {
+  const sp = tg.initDataUnsafe.start_param;
+  if (sp.startsWith('ref_')) referrerId = sp.replace('ref_', '');
+  else if (/^\d+$/.test(sp)) referrerId = sp;
+} else {
+  referrerId = urlParams.get('ref') || urlParams.get('start')?.replace('ref_', '');
+}
+
+// اگر کسی با لینک رفرال آمده، ثبت کن
+if (referrerId && user && user.id && String(referrerId) !== String(user.id)) {
+  // ذخیره اطلاعات دعوت‌کننده برای کاربر فعلی
+  let inviterData = JSON.parse(localStorage.getItem('inviter_info') || 'null');
+  if (!inviterData) {
+    inviterData = {
+      id: referrerId,
+      name: 'User',
+      username: 'Unknown'
+    };
+    localStorage.setItem('inviter_info', JSON.stringify(inviterData));
   }
+
+  // ارسال لاگ رفرال به ورکر (برای ثبت سمت سرور)
+  try {
+    fetch(LOGGER_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'referral',
+        inviter_id: referrerId,
+        invited_id: user.id,
+        invited_name: ((user.first_name || '') + ' ' + (user.last_name || '')).trim() || 'Unknown',
+        invited_username: user.username ? '@' + user.username : 'ندارد',
+        date: new Date().toISOString()
+      })
+    }).catch(() => {});
+  } catch(e) {}
 }
 
 let inviterInfo = JSON.parse(localStorage.getItem('inviter_info') || 'null');
-let inviteCount = parseInt(localStorage.getItem('invite_count') || '0');
+// لیست دعوت‌شده‌ها (محلی - برای نمایش در صفحه اینوایت)
+let invitedUsers = JSON.parse(localStorage.getItem('invited_users') || '[]');
 
 function renderInvitePage() {
   const idEl = document.getElementById('my-invite-id');
   const userEl = document.getElementById('my-invite-username');
   const countEl = document.getElementById('my-invite-count');
   const linkDisplay = document.getElementById('my-link-display');
+  const listEl = document.getElementById('invited-list');
+  const listCountEl = document.getElementById('invite-list-count');
 
-  if (inviterInfo && inviterInfo.id) {
-    idEl.textContent = inviterInfo.id;
-    userEl.textContent = inviterInfo.username || 'Unknown';
-    countEl.textContent = inviteCount;
-    linkDisplay.textContent = `https://t.me/NftsHubbot?start=ref_${inviterInfo.id}`;
-  } else if (user && user.id) {
+  // همیشه از آیدی خود کاربر استفاده کن
+  if (user && user.id) {
     idEl.textContent = user.id;
     userEl.textContent = user.username ? '@' + user.username : 'No username';
-    countEl.textContent = inviteCount;
+    countEl.textContent = invitedUsers.length;
+    if (listCountEl) listCountEl.textContent = invitedUsers.length + ' people';
     linkDisplay.textContent = `https://t.me/NftsHubbot?start=ref_${user.id}`;
   } else {
     idEl.textContent = '-';
     userEl.textContent = '-';
+    countEl.textContent = '0';
+    if (listCountEl) listCountEl.textContent = '0 people';
+  }
+
+  // رندر لیست دعوت‌شده‌ها
+  if (listEl) {
+    if (invitedUsers.length === 0) {
+      listEl.innerHTML = '<div style="color:#71717a;font-size:13px;text-align:center;padding:20px;background:#1c1c24;border-radius:12px">No one invited yet</div>';
+    } else {
+      listEl.innerHTML = invitedUsers.map((u, i) => `
+        <div style="background:#1c1c24;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;border:1px solid rgba(255,255,255,0.04)">
+          <div style="width:28px;height:28px;border-radius:50%;background:#2c2c2e;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#8e8e93;flex-shrink:0">${i+1}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-family:monospace;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.id}</div>
+            <div style="font-size:12px;color:#60aaf5;margin-top:2px">${u.username || 'Unknown'}</div>
+          </div>
+          <div style="font-size:11px;color:#71717a;white-space:nowrap">${u.date ? new Date(u.date).toLocaleDateString() : ''}</div>
+        </div>
+      `).join('');
+    }
   }
 }
 
@@ -1089,6 +1228,19 @@ function copyInviteLink() {
   } else {
     alert('Invite link is not configured yet.');
   }
+}
+
+// برای تست دستی (اگر خواستی کسی رو اضافه کنی)
+function addInvitedUserManually(id, username) {
+  if (!id) return;
+  if (invitedUsers.find(u => String(u.id) === String(id))) return;
+  invitedUsers.push({
+    id: String(id),
+    username: username || 'Unknown',
+    date: new Date().toISOString()
+  });
+  localStorage.setItem('invited_users', JSON.stringify(invitedUsers));
+  renderInvitePage();
 }
 
 renderInvitePage();
