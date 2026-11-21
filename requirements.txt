@@ -4,3 +4,4 @@ aiogram
 TelegramGifts
 fastapi
 uvicorn
+httpx
