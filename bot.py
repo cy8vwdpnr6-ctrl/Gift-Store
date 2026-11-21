@@ -41,17 +41,21 @@ async def get_gifts_api():
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        # 2. لینک (slug)
-                        slug = info.get('slug', '')
-                        if not slug:
-                            slug = name.lower().replace(" ", "").replace("'", "")
-                        gift_link = f"https://t.me/nft/{slug}"
+                        # 2. لینک واقعی (Name-Number)
+                        # شماره سریال معمولاً در فیلد شماره یا از خود شیء gift قابل دسترسی است
+                        serial = info.get('number', '') or info.get('serial', '')
+                        clean_name = name.replace(" ", "").replace("'", "")
+                        
+                        if serial:
+                            gift_link = f"https://t.me/nft/{clean_name}-{serial}"
+                        else:
+                            gift_link = "" # اگر شماره نبود، لینک نمی‌سازیم که ارور نده
                         
                         # 3. عکس
                         links = info.get('links', {})
                         img_url = links.get('webp', '') or links.get('png', '') or links.get('jpg', '')
                         
-                        # 4. بک‌گراند
+                        # 4. بک‌گراند واقعی
                         backdrop = info.get('backdrop', {})
                         bg_color = ""
                         
@@ -75,11 +79,6 @@ async def get_gifts_api():
                                     else:
                                         c_to_hex = c_to
                                     bg_color = f"linear-gradient(135deg, {bg_color}, {c_to_hex})"
-                        
-                        if not bg_color:
-                            bg_color = info.get('background_color', '') or info.get('bg_color', '')
-                            if bg_color and not str(bg_color).startswith('#'):
-                                bg_color = f"#{bg_color}"
 
                         result.append({
                             "name": name,
@@ -89,7 +88,6 @@ async def get_gifts_api():
                             "bg_color": bg_color 
                         })
             except Exception as e:
-                print(f"Error on {gift.full_name}: {e}")
                 continue
             
             if len(result) >= 100:
@@ -98,7 +96,7 @@ async def get_gifts_api():
         return {"status": "success", "data": result}
         
     except Exception as e:
-        return {"status": "error", "message": f"خطای کلی: {str(e)}"}
+        return {"status": "error", "message": str(e)}
 
 async def main():
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
