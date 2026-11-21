@@ -1,2 +1,6 @@
 aiogram
 TelegramGifts
+aiogram
+TelegramGifts
+fastapi
+uvicorn
