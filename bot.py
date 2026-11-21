@@ -31,22 +31,25 @@ async def get_gifts_api():
 
         for gift in regular_gifts:
             try:
+                # گرفتن اطلاعات آپگرید شده (NFT) با همون اسم
                 info = gifts_lib.get_gift(gift.full_name, gift_type="upgraded")
+                
                 if info:
                     name = info.get('full_name', gift.full_name)
                     if name not in seen:
                         seen.add(name)
+                        
+                        # 🔴 استخراج قیمت
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        # 🔴 استخراج سریال (slug) و لینک عکس
-                        # فیلد slug معمولاً شماره سریال رو داره
+                        # 🔴 استخراج شماره سریال واقعی (slug)
+                        # این فیلد دقیقاً شماره سریال کالکشن رو داره
                         serial = info.get('slug', '')
                         
-                        # تلاش برای گرفتن لینک عکس از اطلاعات استیکر
-                        img_url = info.get('sticker', {}).get('thumb_url', '')
-                        if not img_url:
-                            img_url = info.get('image', '') 
+                        # 🔴 استخراج لینک عکس (webp)
+                        # لینک عکس توی دیکشنری links و کلید webp هست
+                        img_url = info.get('links', {}).get('webp', '')
                         
                         result.append({
                             "name": name,
