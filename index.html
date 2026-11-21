@@ -893,7 +893,6 @@ async function renderGifts(filter = 'all') {
   if (filter === 'popular') filtered.sort((a, b) => b.popularity - a.popularity);
   else if (filter === 'cheap') filtered.sort((a, b) => a.price - b.price);
 
-  // رندر کارت ها با دکمه لینک زیر اسم
   grid.innerHTML = filtered.map(gift => `
     <div class="gift-card" onclick="openGiftModal('${gift.id}')">
       <div class="gift-image-wrapper" style="background: ${gift.bg_color};">
