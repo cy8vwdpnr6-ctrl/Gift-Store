@@ -1,5 +1,6 @@
 import os
 import asyncio
+import httpx # برای درخواست به API
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from TelegramGifts import TelegramGifts
@@ -12,6 +13,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+# همچنان از این کتابخانه برای گرفتن لیست اولیه استفاده میکنیم
 gifts_lib = TelegramGifts(cache_mode="http", asset_mode="lazy")
 
 @dp.message(Command("gifts"))
@@ -20,6 +22,42 @@ async def show_gifts(message: types.Message):
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# تابع کمکی برای گرفتن اطلاعات دقیق از TonAPI
+async def get_tonapi_details(gift_name: str):
+    # لینک API تون برای کلکسیون گیفت‌ها
+    url = f"https://tonapi.io/v2/nfts/collections?collection_name={gift_name}"
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                # اگر API چیزی برگردوند، اولین نتیجه رو میگیریم
+                if data and len(data) > 0:
+                    collection = data[0]
+                    metadata = collection.get('metadata', {})
+                    
+                    # لینک اختصاصی
+                    slug = metadata.get('name', '').lower().replace(' ', '-')
+                    link = f"https://t.me/nft/{slug}"
+                    
+                    # گرفتن رنگ پس‌زمینه از متادیتا
+                    # رنگ در تون معمولا به صورت عدد یا هگز در فیلدهای مختلف ذخیره میشه
+                    bg_color = metadata.get('background_color', '')
+                    if bg_color and not str(bg_color).startswith('#'):
+                         bg_color = f"#{bg_color}"
+                    
+                    # عکس با کیفیت
+                    image = metadata.get('image', '')
+                    
+                    return {
+                        "link": link,
+                        "bg_color": bg_color,
+                        "image": image
+                    }
+        except Exception as e:
+            print(f"TonAPI Error for {gift_name}: {e}")
+    return None
 
 @app.get("/api/gifts")
 async def get_gifts_api():
@@ -37,40 +75,23 @@ async def get_gifts_api():
                     if name not in seen:
                         seen.add(name)
                         
-                        # قیمت
+                        # قیمت از کتابخانه
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        # 🔴 لینک واقعی: باید از فیلد slug استخراج بشه
-                        # در تلگرام، لینک واقعی به صورت t.me/nft/slug ساخته میشه
-                        slug = info.get('slug', '')
-                        if not slug:
-                            # اگر slug نبود، از فیلد name داخل info استفاده میکنیم (نه اسم کامل)
-                            slug = info.get('name', '')
+                        # گرفتن لینک، رنگ و عکس از TonAPI
+                        ton_data = await get_tonapi_details(gift.full_name)
                         
-                        # اگر باز هم خالی بود، از خود شیء gift استفاده میکنیم
-                        if not slug and hasattr(gift, 'slug'):
-                            slug = gift.slug
-                        
-                        gift_link = f"https://t.me/nft/{slug}" if slug else ""
-                        
-                        # 🔴 عکس با کیفیت بالا
-                        links = info.get('links', {})
-                        img_url = links.get('webp', '') or links.get('png', '') or links.get('jpg', '')
-                        
-                        # 🔴 بک‌گراند دقیق‌تر
-                        # گاهی اوقات رنگ توی فیلد background_color هست و گاهی background
-                        bg_color = info.get('background_color', '') or info.get('background', '')
-                        
-                        # اگر رنگ به صورت "#" نبود، اضافه میکنیم
-                        if bg_color and not bg_color.startswith('#'):
-                            bg_color = f"#{bg_color}"
-                        
-                        # لاگ برای دیباگ در Railway
-                        print(f"--- {name} ---")
-                        print(f"Slug: {slug}")
-                        print(f"Link: {gift_link}")
-                        print(f"Bg: {bg_color}")
+                        if ton_data:
+                            gift_link = ton_data['link']
+                            bg_color = ton_data['bg_color']
+                            img_url = ton_data['image']
+                        else:
+                            # اگر TonAPI جواب نداد، از دیتای خود کتابخانه استفاده میکنیم
+                            links = info.get('links', {})
+                            img_url = links.get('webp', '') or links.get('png', '')
+                            gift_link = ""
+                            bg_color = ""
 
                         result.append({
                             "name": name,
@@ -79,6 +100,11 @@ async def get_gifts_api():
                             "image_url": img_url,
                             "bg_color": bg_color 
                         })
+                        
+                        print(f"--- {name} ---")
+                        print(f"Link: {gift_link}")
+                        print(f"Color: {bg_color}")
+
             except Exception as e:
                 print(f"Error on {gift.full_name}: {e}")
                 continue
