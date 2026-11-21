@@ -893,16 +893,21 @@ async function renderGifts(filter = 'all') {
   if (filter === 'popular') filtered.sort((a, b) => b.popularity - a.popularity);
   else if (filter === 'cheap') filtered.sort((a, b) => a.price - b.price);
 
-  grid.innerHTML = filtered.map(gift => `
+  grid.innerHTML = filtered.map(gift => {
+    // اگر لینک از سرور اومد از اون، وگرنه با اسم میسازیم
+    const realLink = gift.link || `https://t.me/nft/${gift.name.replace(/ /g, '').replace(/'/g, '')}`;
+    
+    return `
     <div class="gift-card" onclick="openGiftModal('${gift.id}')">
-      <div class="gift-image-wrapper" style="background: ${gift.bg_color};">
-        <img src="${gift.image}" alt="${gift.name}" loading="lazy" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=transparent&color=fff'">
+      <div class="gift-image-wrapper" style="background: ${gift.bg_color || '#1c1c1e'};">
+        <img src="${gift.image}" alt="${gift.name}" loading="lazy">
       </div>
+      
       <div class="gift-card-title">${gift.name}</div>
       
-      <!-- دکمه View in Telegram زیر اسم -->
-      <div style="margin-bottom: 8px; height: 18px;">
-        ${gift.link ? `<a href="${gift.link}" target="_blank" onclick="event.stopPropagation()" style="color: #60aaf5; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">↗ View in Telegram</a>` : ''}
+      <!-- دکمه ویو این تلگرام -->
+      <div style="margin-bottom: 8px; margin-top: 4px;">
+        <a href="${realLink}" target="_blank" onclick="event.stopPropagation()" style="color: #60aaf5; font-size: 12px; text-decoration: none; display: inline-block; font-weight: 600;">↗ View in Telegram</a>
       </div>
 
       <div class="gift-card-actions" onclick="event.stopPropagation()">
@@ -914,7 +919,8 @@ async function renderGifts(filter = 'all') {
         </button>
       </div>
     </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function filterGifts(type, btnElement) {
@@ -944,16 +950,15 @@ function openGiftModal(giftId) {
   
   giftQuantity = 1; 
   
-  // دادن رنگ به مودال
   document.getElementById('modal-gift-preview').style.background = selectedGift.bg_color;
   document.getElementById('modal-gift-preview').innerHTML = `<img src="${selectedGift.image}" alt="${selectedGift.name}" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=transparent&color=fff'">`;
   
   document.getElementById('modal-gift-name').textContent = selectedGift.name;
   
-  // تنظیم لینک تلگرام توی مودال
+  const realLink = selectedGift.link || `https://t.me/nft/${selectedGift.name.replace(/ /g, '').replace(/'/g, '')}`;
   const linkEl = document.getElementById('modal-gift-link');
-  if (selectedGift.link) {
-      linkEl.href = selectedGift.link;
+  if (realLink) {
+      linkEl.href = realLink;
       linkEl.style.display = 'inline-block';
   } else {
       linkEl.style.display = 'none';
