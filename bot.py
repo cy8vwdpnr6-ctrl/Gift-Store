@@ -14,7 +14,7 @@ COLOR_MAP = {
     "Pine Green": "#017561", "Mystic Pearl": "#E6E0D4", "Silver Blue": "#8A9A9D",
     "French Blue": "#0072BB", "Ranger Green": "#444C38", "Pacific Cyan": "#1CA9C9",
     "Seal Brown": "#59260B", "French Violet": "#8806CE", "Onyx Black": "#0F0F0F",
-    "Crimson Red": "#990000", "Gold": "#FFD700", "Vice Cream": "#F5F5DC"
+    "Crimson Red": "#990000", "Gold": "#FFD700"
 }
 
 @app.get("/api/gifts")
@@ -22,61 +22,57 @@ async def get_gifts_api():
     try:
         import aportalsmp
         
-        all_gifts = []
-        # 🔴 حلقه برای گرفتن 700 تا گیفت (14 بار 50 تا)
+        result = []
+        seen_links = set()
+        
+        # 🔴 حلقه با مکث (تاخیر) برای جلوگیری از کرش کردن سرور
         for offset in range(0, 700, 50):
             try:
                 listings = await aportalsmp.search(
                     authData=PORTALS_TOKEN,
                     gift_name="",
                     limit=50, 
-                    offset=offset, # پارامتر offset برای صفحه‌بندی
+                    offset=offset,
                     sort="price_asc"
                 )
                 
                 if not listings:
-                    break # اگه لیست خالی بود، یعنی دیگه گیفتی نیست
+                    break 
                     
-                all_gifts.extend(listings)
+                for gift in listings:
+                    name = getattr(gift, 'name', 'Unknown')
+                    price = getattr(gift, 'price', 0)
+                    tg_id = getattr(gift, 'tg_id', '')
+                    clean_name = name.replace(" ", "").replace("'", "")
+                    
+                    if tg_id:
+                        link = f"https://t.me/nft/{clean_name}-{tg_id}"
+                    else:
+                        link = f"https://t.me/nft/{clean_name}"
+                    
+                    if link in seen_links: continue
+                    seen_links.add(link)
+                    
+                    img_url = getattr(gift, 'photo_url', '') or ""
+                    color_name = getattr(gift, 'backdrop', '')
+                    bg_color = COLOR_MAP.get(color_name, "#1c1c1e")
+                    
+                    result.append({
+                        "name": name,
+                        "price": price,
+                        "link": link,
+                        "image_url": img_url,
+                        "bg_color": bg_color
+                    })
+                
+                # 🔴 این مکث یک ثانیه‌ای باعث میشه سرور پورتالز ما رو بلاک نکنه
+                await asyncio.sleep(1.0) 
                 
             except Exception as e:
                 print(f"Error at offset {offset}: {e}")
-                break # اگه خطا داد، از حلقه بیا بیرون
+                # اگه یه بخشی خطا داد، فقط از حلقه بیا بیرون ولی کل سرور رو کرش نکن
+                break 
         
-        result = []
-        seen_links = set() # برای جلوگیری از تکراری شدن
-        
-        for gift in all_gifts:
-            name = getattr(gift, 'name', 'Unknown')
-            price = getattr(gift, 'price', 0)
-            
-            tg_id = getattr(gift, 'tg_id', '')
-            clean_name = name.replace(" ", "").replace("'", "")
-            
-            if tg_id:
-                link = f"https://t.me/nft/{clean_name}-{tg_id}"
-            else:
-                link = f"https://t.me/nft/{clean_name}"
-            
-            # جلوگیری از تکراری ها
-            if link in seen_links:
-                continue
-            seen_links.add(link)
-            
-            # عکس بدون تقلب
-            img_url = getattr(gift, 'photo_url', '') or ""
-
-            color_name = getattr(gift, 'backdrop', '')
-            bg_color = COLOR_MAP.get(color_name, "#1c1c1e")
-            
-            result.append({
-                "name": name,
-                "price": price,
-                "link": link,
-                "image_url": img_url,
-                "bg_color": bg_color
-            })
-            
         return {"status": "success", "data": result}
         
     except Exception as e:
