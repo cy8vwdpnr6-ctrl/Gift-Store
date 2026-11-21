@@ -5,3 +5,4 @@ TelegramGifts
 fastapi
 uvicorn
 httpx
+aportalsmp
