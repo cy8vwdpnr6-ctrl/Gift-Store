@@ -5,4 +5,4 @@ TelegramGifts
 fastapi
 uvicorn
 httpx
-aportalsmp
+aportalsmp>=1.3
