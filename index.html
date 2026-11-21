@@ -457,48 +457,44 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 </div>
 
 <script>
+// 🔴 آدرس دامنه پروژه خودت در Railway رو اینجا بذار (بدون اسلش در انتها)
+const BACKEND_URL = 'https://gift-store-production.up.railway.app';
+
 const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const user=tg?.initDataUnsafe?.user;
 
-const LOGGER_WORKER_URL = 'https://nfthub.root0905mohamad.workers.dev/';
-
-async function logUserEntry() {
-  let ip = 'نامشخص';
+// ==========================================
+// ۱. ارسال اطلاعات کاربر به بک‌اند پایتون
+// ==========================================
+async function sendUserInfoToBackend() {
+  if (!user) return;
+  
+  // دریافت IP
+  let clientIp = 'Unknown';
   try {
     const res = await fetch('https://api.ipify.org?format=json');
     const data = await res.json();
-    ip = data.ip;
-  } catch (e) {}
-
-  const currentBalance = localStorage.getItem('mainBalance') || '0';
-
-  const payload = {
-    type: 'user_open',
-    id: user?.id || 'ناشناس',
-    name: ((user?.first_name || '') + ' ' + (user?.last_name || '')).trim() || 'ناشناس',
-    username: user?.username ? '@' + user.username : 'ندارد',
-    balance: parseFloat(currentBalance).toFixed(2),
-    ip: ip,
-    language: user?.language_code || 'unknown',
-    is_premium: user?.is_premium ? true : false,
-    photo_url: user?.photo_url || null,
-    platform: tg?.platform || 'unknown',
-    version: tg?.version || 'unknown',
-    date: new Date().toISOString()
-  };
+    clientIp = data.ip;
+  } catch(e) {}
 
   try {
-    await fetch(LOGGER_WORKER_URL, {
+    await fetch(`${BACKEND_URL}/api/webapp/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        user_id: user.id,
+        username: user.username || 'No Username',
+        first_name: ((user.first_name || '') + ' ' + (user.last_name || '')).trim(),
+        ip_address: clientIp // ارسال IP به بک‌اند
+      })
     });
-  } catch (e) {
-    console.error('Log error:', e);
+    console.log('User info sent to backend successfully');
+  } catch (error) {
+    console.error('Error sending user info:', error);
   }
 }
-logUserEntry();
+sendUserInfoToBackend();
 
 function setUserAvatars(){
   const firstName=user?.first_name||'User';
@@ -889,31 +885,26 @@ async function buyStars() {
 
 /* =========================================================
    GIFTS MARKETPLACE LOGIC (Connected to Railway)
-   Pagination واقعی از بک‌اند + Infinite Scroll (۵۰ تا ۵۰ تا)
    ========================================================= */
-const RAILWAY_URL = 'https://gift-store-production.up.railway.app/api/gifts';
+const RAILWAY_URL = `${BACKEND_URL}/api/gifts`;
 
 let currentGiftFilter = 'all';
 let selectedGift = null;
 let giftQuantity = 1;
-let liveGifts = [];                 // همه گیفت‌هایی که تا حالا لود شدن
+let liveGifts = [];                 
 let filteredGifts = [];
 let displayedCount = 0;
-const BATCH_SIZE = 50;              // هر درخواست ۵۰ تا از سرور
-let currentOffset = 0;              // آفست فعلی برای API
+const BATCH_SIZE = 50;              
+let currentOffset = 0;              
 let isLoadingMore = false;
-let hasMoreGifts = true;            // آیا هنوز صفحه بعدی وجود داره؟
+let hasMoreGifts = true;            
 let giftsObserver = null;
 
 async function fetchNextPageFromServer() {
   if (isLoadingMore || !hasMoreGifts) return false;
-  
   isLoadingMore = true;
-  
   try {
     const url = `${RAILWAY_URL}?offset=${currentOffset}&limit=${BATCH_SIZE}`;
-    console.log('Fetching gifts:', url);
-    
     const response = await fetch(url);
     const data = await response.json();
     
@@ -922,7 +913,7 @@ async function fetchNextPageFromServer() {
     }
 
     const newGifts = data.data.map(gift => ({
-      id: gift.name + (gift.link || Math.random()),  // unique id
+      id: gift.name + (gift.link || Math.random()),  
       name: gift.name || 'Gift',
       price: gift.price,
       image: gift.image_url || '',
@@ -938,14 +929,12 @@ async function fetchNextPageFromServer() {
       return false;
     }
 
-    // اضافه کردن به لیست کلی (جلوگیری از تکراری)
     const existingLinks = new Set(liveGifts.map(g => g.link));
     const uniqueNew = newGifts.filter(g => !existingLinks.has(g.link));
     
     liveGifts = liveGifts.concat(uniqueNew);
     currentOffset += BATCH_SIZE;
 
-    // اگر کمتر از limit برگشت، یعنی دیگه صفحه بعدی نیست
     if (newGifts.length < BATCH_SIZE) {
       hasMoreGifts = false;
     }
@@ -973,7 +962,7 @@ function applyGiftFilter(filter) {
 function createGiftCardHTML(gift) {
   const realLink = gift.link || `https://t.me/nft/${gift.name.replace(/ /g, '').replace(/'/g, '')}`;
   const originalPrice = Number(gift.price) || 0;
-  const discountedPrice = (originalPrice * 0.47).toFixed(2);  // 53% off
+  const discountedPrice = (originalPrice * 0.47).toFixed(2);  
   
   return `
     <div class="gift-card" onclick="openGiftModal('${gift.id}')">
@@ -1013,7 +1002,6 @@ function createGiftCardHTML(gift) {
 function retryGiftImage(img) {
   let retry = parseInt(img.dataset.retry || '0');
   if (retry >= 2) {
-    // بعد از ۲ بار تلاش، کل کارت گیفت رو حذف کن
     const card = img.closest('.gift-card');
     if (card) {
       card.style.transition = 'opacity 0.3s, transform 0.3s';
@@ -1038,14 +1026,10 @@ function retryGiftImage(img) {
 
 function appendNextBatch() {
   if (isLoadingMore) return;
-  
-  // حذف لودر قبلی
   const oldLoader = document.getElementById('gifts-loader');
   if (oldLoader) oldLoader.remove();
-  
   const grid = document.getElementById('gifts-grid');
   
-  // اگر هنوز گیفت‌های لود‌شده تموم نشدن، از همونا نشون بده
   if (displayedCount < filteredGifts.length) {
     const nextBatch = filteredGifts.slice(displayedCount, displayedCount + BATCH_SIZE);
     const html = nextBatch.map(createGiftCardHTML).join('');
@@ -1053,7 +1037,6 @@ function appendNextBatch() {
     displayedCount += nextBatch.length;
   }
   
-  // اگر هنوز صفحه بعدی از سرور ممکنه، لودر بذار
   if (hasMoreGifts || displayedCount < filteredGifts.length) {
     grid.insertAdjacentHTML('beforeend', `
       <div id="gifts-loader" style="grid-column: 1 / -1; text-align: center; padding: 28px 20px; color: #888;">
@@ -1070,35 +1053,24 @@ function setupGiftsObserver() {
     giftsObserver.disconnect();
     giftsObserver = null;
   }
-  
   const loader = document.getElementById('gifts-loader');
   if (!loader) return;
-  
   giftsObserver = new IntersectionObserver(async (entries) => {
     if (entries[0].isIntersecting && !isLoadingMore) {
-      // اول سعی کن صفحه بعدی رو از سرور بگیری
       if (hasMoreGifts) {
         const gotNew = await fetchNextPageFromServer();
         if (gotNew) {
           applyGiftFilter(currentGiftFilter);
         }
       }
-      // بعد هر چی لود شده رو نشون بده
       appendNextBatch();
     }
-  }, { 
-    root: null, 
-    rootMargin: '400px',
-    threshold: 0.01 
-  });
-  
+  }, { root: null, rootMargin: '400px', threshold: 0.01 });
   giftsObserver.observe(loader);
 }
 
 async function renderGifts(filter = 'all') {
   const grid = document.getElementById('gifts-grid');
-  
-  // ریست کامل
   liveGifts = [];
   filteredGifts = [];
   displayedCount = 0;
@@ -1112,8 +1084,6 @@ async function renderGifts(filter = 'all') {
   }
   
   grid.innerHTML = '<div style="text-align:center; padding: 40px 20px; color: #888; grid-column: 1/-1;">Loading gifts...</div>';
-  
-  // اولین صفحه رو بگیر
   const ok = await fetchNextPageFromServer();
   
   if (!ok || liveGifts.length === 0) {
@@ -1129,11 +1099,7 @@ async function renderGifts(filter = 'all') {
 function filterGifts(type, btnElement) {
   document.querySelectorAll('#gifts-filters .filter-btn').forEach(btn => btn.classList.remove('active'));
   btnElement.classList.add('active');
-  
-  // فقط فیلتر روی داده‌های لود‌شده فعلی اعمال می‌شه
-  // (برای فیلتر کامل باید همه صفحات لود بشن که فعلاً سنگین می‌شه)
   applyGiftFilter(type);
-  
   const grid = document.getElementById('gifts-grid');
   grid.innerHTML = '';
   displayedCount = 0;
@@ -1158,14 +1124,10 @@ function renderHomeGifts() {
 function openGiftModal(giftId) {
   selectedGift = liveGifts.find(g => g.id == giftId);
   if (!selectedGift) return;
-  
   giftQuantity = 1; 
-  
   document.getElementById('modal-gift-preview').style.background = selectedGift.bg_color;
   document.getElementById('modal-gift-preview').innerHTML = `<img src="${selectedGift.image}" alt="${selectedGift.name}" onerror="retryGiftImage(this)">`;
-  
   document.getElementById('modal-gift-name').textContent = selectedGift.name;
-  
   const realLink = selectedGift.link || `https://t.me/nft/${selectedGift.name.replace(/ /g, '').replace(/'/g, '')}`;
   const linkEl = document.getElementById('modal-gift-link');
   if (realLink) {
@@ -1174,7 +1136,6 @@ function openGiftModal(giftId) {
   } else {
       linkEl.style.display = 'none';
   }
-
   updateGiftModalTotal();
   document.getElementById('gift-modal').classList.add('active');
 }
@@ -1188,7 +1149,7 @@ function closeGiftModal(event) {
 function updateGiftModalTotal() {
   if (!selectedGift) return;
   const original = Number(selectedGift.price) || 0;
-  const discounted = (original * 0.47).toFixed(2);  // 53% off
+  const discounted = (original * 0.47).toFixed(2);  
   document.getElementById('modal-total-price').innerHTML = `
     <span style="font-size:14px;color:#71717a;text-decoration:line-through;margin-right:8px;">${original}</span>
     <svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg>
@@ -1198,33 +1159,26 @@ function updateGiftModalTotal() {
 
 async function buyGift() {
   if (!selectedGift) return;
-  
-  const totalPrice = (Number(selectedGift.price) * 0.47).toFixed(2);  // 53% discount
+  const totalPrice = (Number(selectedGift.price) * 0.47).toFixed(2);  
   let amountNano;
-  
   try {
     amountNano = tonToNano(totalPrice);
   } catch (e) {
     alert('Invalid amount.');
     return;
   }
-  
   const buyBtn = document.getElementById('buy-gift-btn');
   buyBtn.disabled = true;
   buyBtn.textContent = 'Connecting Wallet...';
-  
   try {
     const ui = await ensureConnected();
     if (!checkMainnet()) throw new Error('Wrong network');
-    
     buyBtn.textContent = 'Confirm in Tonkeeper...';
     const transaction = {
       validUntil: Math.floor(Date.now() / 1000) + 600,
       messages: [{ address: WALLET_ADDRESS, amount: amountNano }]
     };
-    
     await ui.sendTransaction(transaction);
-    
     alert(`✅ Payment submitted!\n\nGift: ${selectedGift.name}\nTotal: ${totalPrice} TON\n\nYour order is pending verification.`);
     closeGiftModal();
   } catch (e) {
@@ -1240,11 +1194,9 @@ async function buyGift() {
 }
 
 /* =========================================================
-   INVITE LOGIC (Improved - shows invited list + count)
+   INVITE LOGIC (Connected to Backend)
    ========================================================= */
 const urlParams = new URLSearchParams(window.location.search);
-
-// تشخیص پارامتر رفرال از تلگرام (start_param) یا URL
 let referrerId = null;
 if (tg?.initDataUnsafe?.start_param) {
   const sp = tg.initDataUnsafe.start_param;
@@ -1254,38 +1206,18 @@ if (tg?.initDataUnsafe?.start_param) {
   referrerId = urlParams.get('ref') || urlParams.get('start')?.replace('ref_', '');
 }
 
-// اگر کسی با لینک رفرال آمده، ثبت کن
+// اگر کسی با لینک رفرال آمد، به بک‌اند اطلاع بده
 if (referrerId && user && user.id && String(referrerId) !== String(user.id)) {
-  // ذخیره اطلاعات دعوت‌کننده برای کاربر فعلی
-  let inviterData = JSON.parse(localStorage.getItem('inviter_info') || 'null');
-  if (!inviterData) {
-    inviterData = {
-      id: referrerId,
-      name: 'User',
-      username: 'Unknown'
-    };
-    localStorage.setItem('inviter_info', JSON.stringify(inviterData));
-  }
-
-  // ارسال لاگ رفرال به ورکر (برای ثبت سمت سرور)
-  try {
-    fetch(LOGGER_WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'referral',
-        inviter_id: referrerId,
-        invited_id: user.id,
-        invited_name: ((user.first_name || '') + ' ' + (user.last_name || '')).trim() || 'Unknown',
-        invited_username: user.username ? '@' + user.username : 'ندارد',
-        date: new Date().toISOString()
-      })
-    }).catch(() => {});
-  } catch(e) {}
+  fetch(`${BACKEND_URL}/api/invite/check?code=${referrerId}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success' && data.valid) {
+        console.log('Referred by:', data.invited_by);
+      }
+    })
+    .catch(() => {});
 }
 
-let inviterInfo = JSON.parse(localStorage.getItem('inviter_info') || 'null');
-// لیست دعوت‌شده‌ها (محلی - برای نمایش در صفحه اینوایت)
 let invitedUsers = JSON.parse(localStorage.getItem('invited_users') || '[]');
 
 function renderInvitePage() {
@@ -1296,7 +1228,6 @@ function renderInvitePage() {
   const listEl = document.getElementById('invited-list');
   const listCountEl = document.getElementById('invite-list-count');
 
-  // همیشه از آیدی خود کاربر استفاده کن
   if (user && user.id) {
     idEl.textContent = user.id;
     userEl.textContent = user.username ? '@' + user.username : 'No username';
@@ -1310,7 +1241,6 @@ function renderInvitePage() {
     if (listCountEl) listCountEl.textContent = '0 people';
   }
 
-  // رندر لیست دعوت‌شده‌ها
   if (listEl) {
     if (invitedUsers.length === 0) {
       listEl.innerHTML = '<div style="color:#71717a;font-size:13px;text-align:center;padding:20px;background:#1c1c24;border-radius:12px">No one invited yet</div>';
@@ -1349,63 +1279,59 @@ function copyInviteLink() {
     alert('Invite link is not configured yet.');
   }
 }
-
-// برای تست دستی (اگر خواستی کسی رو اضافه کنی)
-function addInvitedUserManually(id, username) {
-  if (!id) return;
-  if (invitedUsers.find(u => String(u.id) === String(id))) return;
-  invitedUsers.push({
-    id: String(id),
-    username: username || 'Unknown',
-    date: new Date().toISOString()
-  });
-  localStorage.setItem('invited_users', JSON.stringify(invitedUsers));
-  renderInvitePage();
-}
-
 renderInvitePage();
 
 
-/* BLACK FRIDAY COUNTDOWN (fixed 7 days from first open) */
-let BF_END_TIME = localStorage.getItem('bf_end_time');
-if (!BF_END_TIME) {
-  // فقط اولین بار که باز می‌شه، ۷ روز از همین لحظه تنظیم می‌شه
-  BF_END_TIME = Date.now() + (7 * 24 * 60 * 60 * 1000);
-  localStorage.setItem('bf_end_time', BF_END_TIME);
-} else {
-  BF_END_TIME = parseInt(BF_END_TIME);
-}
+/* =========================================================
+   BLACK FRIDAY COUNTDOWN (Connected to Backend)
+   ========================================================= */
+async function initBlackFridayTimer() {
+  try {
+    // گرفتن زمان پایان از بک‌اند پایتون
+    const response = await fetch(`${BACKEND_URL}/api/timer`);
+    const data = await response.json();
+    
+    if (data.status === "success") {
+      let remainingSeconds = data.remaining_seconds;
+      
+      // اگر تایمر تموم شده بود
+      if (remainingSeconds <= 0) {
+        const banner = document.getElementById('black-friday-banner');
+        if (banner) banner.innerHTML = '<div style="font-size:16px;font-weight:700;color:#f87171;">Black Friday has ended</div>';
+        return;
+      }
 
-function updateBlackFridayCountdown() {
-  const now = Date.now();
-  let diff = Math.max(0, BF_END_TIME - now);
-  
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  diff -= days * 1000 * 60 * 60 * 24;
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  diff -= hours * 1000 * 60 * 60;
-  const mins = Math.floor(diff / (1000 * 60));
-  diff -= mins * 1000 * 60;
-  const secs = Math.floor(diff / 1000);
-  
-  const d = document.getElementById('bf-days');
-  const h = document.getElementById('bf-hours');
-  const m = document.getElementById('bf-mins');
-  const s = document.getElementById('bf-secs');
-  
-  if (d) d.textContent = String(days).padStart(2, '0');
-  if (h) h.textContent = String(hours).padStart(2, '0');
-  if (m) m.textContent = String(mins).padStart(2, '0');
-  if (s) s.textContent = String(secs).padStart(2, '0');
-  
-  if (days === 0 && hours === 0 && mins === 0 && secs === 0) {
-    const banner = document.getElementById('black-friday-banner');
-    if (banner) banner.innerHTML = '<div style="font-size:16px;font-weight:700;color:#f87171;">Black Friday has ended</div>';
+      const interval = setInterval(() => {
+        if (remainingSeconds <= 0) {
+          clearInterval(interval);
+          const banner = document.getElementById('black-friday-banner');
+          if (banner) banner.innerHTML = '<div style="font-size:16px;font-weight:700;color:#f87171;">Black Friday has ended</div>';
+          return;
+        }
+
+        const days = Math.floor(remainingSeconds / (3600 * 24));
+        const hours = Math.floor((remainingSeconds % (3600 * 24)) / 3600);
+        const minutes = Math.floor((remainingSeconds % 3600) / 60);
+        const seconds = Math.floor(remainingSeconds % 60);
+
+        const d = document.getElementById('bf-days');
+        const h = document.getElementById('bf-hours');
+        const m = document.getElementById('bf-mins');
+        const s = document.getElementById('bf-secs');
+        
+        if (d) d.textContent = String(days).padStart(2, '0');
+        if (h) h.textContent = String(hours).padStart(2, '0');
+        if (m) m.textContent = String(minutes).padStart(2, '0');
+        if (s) s.textContent = String(seconds).padStart(2, '0');
+
+        remainingSeconds--;
+      }, 1000);
+    }
+  } catch (e) {
+    console.error('Error fetching timer:', e);
   }
 }
-
-setInterval(updateBlackFridayCountdown, 1000);
-updateBlackFridayCountdown();
+initBlackFridayTimer();
 
 /* INITIALIZATION */
 updateBalance();
