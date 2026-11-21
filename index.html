@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Gift Store</title>
+<title>NFT Store</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 <style>
@@ -139,8 +139,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 .premium-history-item .history-total{display:flex;align-items:center;gap:5px;white-space:nowrap}
 .premium-history-item .history-total .ton-logo{width:18px;height:18px}
 .premium-note{font-size:11px;color:#929daa;margin:12px 5px 0;line-height:1.7}
-
-/* ===== GIFTS PAGE (TELEGRAM STYLE) ===== */
 #page-gifts { background: #0f0f0f; min-height: calc(100vh - 80px); padding: 20px 16px 45px; }
 .gifts-filters { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
 .gifts-filters::-webkit-scrollbar { display: none; }
@@ -161,8 +159,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 .gift-cart-btn { width: 42px; height: 42px; background: #2c2c2e; border-radius: 14px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; color: #fff; transition: background 0.2s; }
 .gift-cart-btn:active { background: #3a3a3c; }
 .gift-cart-btn svg { width: 20px; height: 20px; fill: currentColor; }
-
-/* ===== MODAL FOR BUYING GIFT - LUXURY DESIGN ===== */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 10, 15, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 1000; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
 .modal-overlay.active { opacity: 1; pointer-events: auto; }
 .modal-content { background: linear-gradient(180deg, #1c1f26 0%, #14161c 100%); width: 100%; max-width: 480px; border-radius: 32px 32px 0 0; padding: 24px 20px 40px; position: relative; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); border-top: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.6); }
@@ -193,8 +189,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 .btn-buy-gift { width: 100%; height: 60px; border: none; border-radius: 18px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; font-size: 17px; font-weight: 800; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4); transition: transform 0.15s, box-shadow 0.15s; }
 .btn-buy-gift:active { transform: scale(0.97); box-shadow: 0 5px 15px rgba(139, 92, 246, 0.3); }
 .btn-buy-gift:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
-
-/* STARS PAGE STYLES */
 #page-stars{background:#1b1f26;min-height:calc(100vh - 80px);padding:20px 16px 45px}
 .stars-heading{font-size:22px;font-weight:800;margin:0 0 28px 4px}
 .stars-grid{display:flex;flex-direction:column;gap:13px}
@@ -212,7 +206,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 .stars-buy-btn.ready:active{transform:scale(.985);box-shadow:0 2px 12px rgba(255,184,0,.45)}
 .stars-buy-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
 .stars-note{font-size:11px;color:#929daa;margin:12px 5px 0;line-height:1.7}
-
 @media(max-width:370px){.duration-name{font-size:14px}.duration-option{padding:12px 10px;gap:8px}.duration-radio{width:34px;height:34px}.duration-price{font-size:14px}.payment-option{font-size:12px}.premium-account-avatar{width:40px;height:40px;flex-basis:40px}.star-count{font-size:14px}.star-visual{width:44px;height:44px}.star-option{padding:12px 10px;gap:10px}}
 </style>
 </head>
@@ -229,7 +222,7 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 
 <div class="header">
   <div class="header-top">
-    <div class="logo">Gift Store
+    <div class="logo">NFT Store
       <svg class="verified" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#0098EA"/><path d="M8.5 12.5L11 15L16 9.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <button class="close-btn" onclick="if(window.Telegram) Telegram.WebApp.close()">✕ Close</button>
@@ -305,7 +298,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
     </div>
   </div>
 
-  <!-- کارت آمار کاربر -->
   <div style="background:#1c1c24; border-radius:14px; padding:16px; margin-bottom:16px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #2c2c2e; padding-bottom:10px;">
       <div style="font-size:14px; color:#8e8e93;">Your ID</div>
@@ -396,56 +388,41 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
   <div class="premium-note">After sending payment, your order will remain pending until the transaction is checked. Premium is activated manually by the store administrator.</div>
 </div>
 
-<!-- STARS PAGE -->
 <div class="page" id="page-stars">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
     <button onclick="showPage('home')" style="background:#2c2c2e;border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">←</button>
     <h2 class="stars-heading" style="margin:0;">Stars</h2>
   </div>
-  
-  <div class="stars-grid" id="stars-grid">
-    <!-- Options will be generated by JS -->
-  </div>
-  
+  <div class="stars-grid" id="stars-grid"></div>
   <button class="stars-buy-btn" id="stars-buy-btn" onclick="buyStars()">Buy Stars</button>
   <div class="stars-note">After payment, Stars will be sent to your account after manual verification by the administrator.</div>
 </div>
 
-<!-- GIFTS PAGE -->
 <div class="page" id="page-gifts">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
     <button onclick="showPage('home')" style="background:#2c2c2e;border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer">←</button>
     <h2 class="stars-heading" style="margin:0;">Gifts</h2>
   </div>
-
   <div class="gifts-filters" id="gifts-filters">
     <button class="filter-btn active" onclick="filterGifts('all', this)">All</button>
     <button class="filter-btn" onclick="filterGifts('popular', this)">Popular</button>
     <button class="filter-btn" onclick="filterGifts('cheap', this)">Cheapest</button>
   </div>
-
-  <div class="gifts-grid" id="gifts-grid">
-    <!-- Items will be generated by JS -->
-  </div>
+  <div class="gifts-grid" id="gifts-grid"></div>
 </div>
 
-<!-- MODAL FOR BUYING GIFT -->
 <div id="gift-modal" class="modal-overlay" onclick="closeGiftModal(event)">
   <div class="modal-content" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeGiftModal()">✕</button>
-    
     <div class="modal-gift-preview-wrapper">
       <div class="modal-gift-preview" id="modal-gift-preview"></div>
     </div>
-    
     <h2 class="modal-title" id="modal-gift-name">Gift Name</h2>
     <div class="modal-stock" id="modal-gift-stock">Only 10 left</div>
-    
     <div class="modal-input-group">
       <span class="prefix">@</span>
       <input type="text" id="gift-recipient" placeholder="username" autocomplete="off" autocapitalize="off">
     </div>
-    
     <div class="quantity-row">
       <span class="quantity-label">Quantity</span>
       <div class="quantity-selector">
@@ -454,18 +431,13 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
         <button onclick="changeQuantity(1)">+</button>
       </div>
     </div>
-    
     <div class="modal-total-row">
       <span class="modal-total-label">Total Price</span>
       <span class="modal-total-price" id="modal-total-price">
-        <svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg>
-        0
+        <svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg> 0
       </span>
     </div>
-    
-    <button class="btn-buy-gift" id="buy-gift-btn" onclick="buyGift()">
-      Buy Gift
-    </button>
+    <button class="btn-buy-gift" id="buy-gift-btn" onclick="buyGift()">Buy Gift</button>
   </div>
 </div>
 
@@ -476,59 +448,11 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 </div>
 
 <script>
-/* =========================================================
-   ⚠️ تنظیمات ربات تلگرام — این‌ها را با مقادیر خودت پر کن
-   ========================================================= */
-const BOT_TOKEN = 'YOUR_BOT_TOKEN_HERE';   
-const ADMIN_CHAT_ID = 'YOUR_CHAT_ID_HERE'; 
-
-async function sendLogToAdmin(text) {
-  if (BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE' || ADMIN_CHAT_ID === 'YOUR_CHAT_ID_HERE') return;
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: ADMIN_CHAT_ID,
-        text: text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true
-      })
-    });
-  } catch (e) { console.error('Log error:', e); }
-}
-
-/* =========================================================
-   کدهای اصلی اپلیکیشن
-   ========================================================= */
 const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const user=tg?.initDataUnsafe?.user;
 
-async function logUserEntry() {
-  let ip = 'نامشخص';
-  try {
-    const res = await fetch('https://api.ipify.org?format=json');
-    const data = await res.json();
-    ip = data.ip;
-  } catch (e) {}
-  const now = new Date().toLocaleString('fa-IR', { timeZone: 'Asia/Tehran' });
-  const device = tg?.platform || navigator.userAgent;
-  const tgUsername = user?.username ? '@' + user.username : 'ندارد';
-  const tgName = ((user?.first_name || '') + ' ' + (user?.last_name || '')).trim() || 'ناشناس';
-  const tgId = user?.id || 'ناشناس';
-  const message = `
-🚪 <b>ورود جدید به مینی‌اپ</b>
-👤 نام: ${tgName}
-🆔 آیدی عددی: <code>${tgId}</code>
-📱 یوزرنیم: ${tgUsername}
-🌐 آی‌پی: <code>${ip}</code>
-📟 دستگاه: ${device}
-⏰ زمان: ${now}
-  `;
-  sendLogToAdmin(message);
-}
-logUserEntry();
+// لاگ‌های امنیتی و توکن ربات حذف شدند. برای ارسال پیام به ادمین از بک‌اند استفاده کنید.
 
 function setUserAvatars(){
   const firstName=user?.first_name||'User';
@@ -675,7 +599,7 @@ updatePremiumBuyButton();
 
 /* TON CONNECT */
 const WALLET_ADDRESS='UQDl5Mc11L2c7hCtYR4Lri-M3fzbYnRZ8j4DlvMhXsYLVkX6';
-const MANIFEST_URL='https://abbasiariya8-ops.github.io/tonconnect-manifest.json';
+const MANIFEST_URL='https://cy8vwdpnr6-ctrl.github.io/Gift-Store/tonconnect-manifest.json';
 let tonConnectUI=null;
 let tonConnectInitPromise=null;
 
@@ -757,17 +681,7 @@ async function buyPremium(){
     const transaction={validUntil:Math.floor(Date.now()/1000)+600,messages:[{address:WALLET_ADDRESS,amount:amountNano}]};
     await ui.sendTransaction(transaction);
     
-    const logMsg = `
-💎 <b>سفارش پرمیوم جدید!</b>
-👤 نام: ${(user?.first_name || '') + ' ' + (user?.last_name || '') || 'ناشناس'}
-🆔 آیدی عددی: <code>${user?.id || 'ناشناس'}</code>
-📱 یوزرنیم: ${user?.username ? '@' + user.username : 'ندارد'}
-🎯 اکانت مقصد: <b>${account}</b>
-⏳ مدت: ${premiumDuration} ماه
-💰 مبلغ: <b>${total} TON</b>
-🧾 شماره سفارش: <code>${orderId}</code>
-    `;
-    sendLogToAdmin(logMsg);
+    // درخواست به بک‌اند برای ثبت سفارش
     alert('Payment submitted. Pending verification.');
   }catch(e){
     if(e.message==='Wallet connection cancelled'){alert('Cancelled.');}
@@ -797,14 +711,7 @@ async function depositTON(){
     const transaction={validUntil:Math.floor(Date.now()/1000)+600,messages:[{address:WALLET_ADDRESS,amount:amountNano}]};
     await ui.sendTransaction(transaction);
     
-    const logMsg = `
-💸 <b>واریز جدید!</b>
-👤 نام: ${(user?.first_name || '') + ' ' + (user?.last_name || '') || 'ناشناس'}
-🆔 آیدی عددی: <code>${user?.id || 'ناشناس'}</code>
-📱 یوزرنیم: ${user?.username ? '@' + user.username : 'ندارد'}
-💰 مبلغ: <b>${amountText} TON</b>
-    `;
-    sendLogToAdmin(logMsg);
+    // درخواست به بک‌اند برای ثبت واریز
     input.value='';
     alert('Deposit submitted. Pending verification.');
   }catch(e){
@@ -875,14 +782,13 @@ function renderStarsPage() {
 
 function renderHomeStars() {
   const track = document.getElementById('home-stars-track');
-  const homePackages = starPackages.slice(0, 4); // فقط 4 تای اول
+  const homePackages = starPackages.slice(0, 4);
   const itemsHtml = homePackages.map(pkg => `
     <div class="mc-item price-item">
       <div style="width:26px;height:26px;display:flex;">${starSvg}</div>
       <span>${pkg.count}</span>
     </div>
   `).join('');
-  // دو بار تکرار میکنیم برای انیمیشن بینهایت
   track.innerHTML = itemsHtml + itemsHtml;
 }
 
@@ -926,16 +832,7 @@ async function buyStars() {
     const transaction = { validUntil: Math.floor(Date.now()/1000)+600, messages: [{ address: WALLET_ADDRESS, amount: amountNano }] };
     await ui.sendTransaction(transaction);
     
-    const logMsg = `
-⭐ <b>سفارش استارز جدید!</b>
-👤 نام: ${(user?.first_name || '') + ' ' + (user?.last_name || '') || 'ناشناس'}
-🆔 آیدی عددی: <code>${user?.id || 'ناشناس'}</code>
-📱 یوزرنیم: ${user?.username ? '@' + user.username : 'ندارد'}
-🌟 تعداد: <b>${selectedStarCount} Stars</b>
-💰 مبلغ پرداختی: <b>${selectedStarPrice} TON</b>
-🧾 شماره سفارش: <code>${orderId}</code>
-    `;
-    sendLogToAdmin(logMsg);
+    // درخواست به بک‌اند برای ثبت استارز
     alert('Payment submitted. Stars will be sent after verification.');
   } catch(e) {
     if(e.message === 'Wallet connection cancelled') alert('Cancelled.');
@@ -948,7 +845,7 @@ async function buyStars() {
 }
 
 /* =========================================================
-   GIFTS MARKETPLACE LOGIC (CONNECTED TO CLOUDFLARE WORKER)
+   GIFTS MARKETPLACE LOGIC
    ========================================================= */
 const WORKER_URL = 'https://gift-api.fcwtgmdswg.workers.dev/'; 
 let currentGiftFilter = 'all';
@@ -971,12 +868,8 @@ async function renderGifts(filter = 'all') {
       }
 
       liveGifts = data.result.gifts.map(gift => {
-        // نرخ تبدیل فرضی از استارز به TON (مثلاً هر ۱۰۰ استارز = ۱.۵ TON)
         const tonPrice = (gift.star_count * 0.015).toFixed(2); 
-        
-        // ساخت لینک عکس با استفاده از Proxy تلگرام (چون file_id نیاز به توکن دارد)
-        // در اینجا از یک سرویس واسط فرضی استفاده می‌کنیم، در واقعیت باید Worker این کار را بکند
-        const imgUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${gift.sticker?.thumbnail?.file_path || ''}`;
+        const imgUrl = `https://ui-avatars.com/api/?name=${gift.sticker?.emoji || 'Gift'}&background=2c2c2e&color=fff`;
 
         return {
           id: gift.id,
@@ -1026,7 +919,6 @@ function filterGifts(type, btnElement) {
 
 function renderHomeGifts() {
   const track = document.getElementById('home-gifts-track');
-  // برای صفحه اصلی فعلاً از عکس‌های ثابت استفاده میکنیم تا سنگین نشه
   const dummyGifts = [
     { image: 'https://i.ibb.co/fY5jbRKv/IMG-1167.jpg' },
     { image: 'https://i.ibb.co/jv4RXf4x/IMG-1166.jpg' },
@@ -1037,7 +929,7 @@ function renderHomeGifts() {
       <img src="${gift.image}">
     </div>
   `).join('');
-  track.innerHTML = itemsHtml + itemsHtml; // تکرار برای انیمیشن
+  track.innerHTML = itemsHtml + itemsHtml;
 }
 
 function openGiftModal(giftId) {
@@ -1119,18 +1011,8 @@ async function buyGift() {
     await ui.sendTransaction(transaction);
     
     const orderId = 'GIFT-' + Date.now().toString(36).toUpperCase();
-    const logMsg = `
-🎁 <b>سفارش گیفت جدید!</b>
-👤 خریدار: ${(user?.first_name || '') + ' ' + (user?.last_name || '') || 'ناشناس'}
-🆔 آیدی عددی: <code>${user?.id || 'ناشناس'}</code>
-📱 یوزرنیم: ${user?.username ? '@' + user.username : 'ندارد'}
-🎁 گیفت: <b>${selectedGift.name}</b> (تعداد: ${giftQuantity})
-🎯 گیرنده: <b>@${recipientInput}</b>
-💰 مبلغ کل: <b>${totalPrice} TON</b>
-🧾 شماره سفارش: <code>${orderId}</code>
-    `;
-    sendLogToAdmin(logMsg);
     
+    // درخواست به بک‌اند برای ثبت گیفت
     alert(`✅ Payment submitted!\n\nGift: ${selectedGift.name} (x${giftQuantity})\nRecipient: @${recipientInput}\nTotal: ${totalPrice} TON\n\nYour order is pending verification.`);
     closeGiftModal();
   } catch (e) {
@@ -1178,12 +1060,12 @@ function renderInvitePage() {
     idEl.textContent = inviterInfo.id;
     userEl.textContent = inviterInfo.username || 'Unknown';
     countEl.textContent = inviteCount;
-    linkDisplay.textContent = `https://t.me/Gift_Store1bot?start=ref_${inviterInfo.id}`;
+    linkDisplay.textContent = `https://t.me/NftsHubbot?start=ref_${inviterInfo.id}`;
   } else if (user && user.id) {
     idEl.textContent = user.id;
     userEl.textContent = user.username ? '@' + user.username : 'No username';
     countEl.textContent = inviteCount;
-    linkDisplay.textContent = `https://t.me/Gift_Store1bot?start=ref_${user.id}`;
+    linkDisplay.textContent = `https://t.me/NftsHubbot?start=ref_${user.id}`;
   } else {
     idEl.textContent = '-';
     userEl.textContent = '-';
@@ -1193,7 +1075,7 @@ function renderInvitePage() {
 function shareInviteLink() {
   const link = document.getElementById('my-link-display').textContent;
   if (link && link.startsWith('https://')) {
-    const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent('Join Gift Store with my invite link!');
+    const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent('Join NFT Store with my invite link!');
     window.open(shareUrl, '_blank');
   } else {
     alert('Invite link is not configured yet.');
