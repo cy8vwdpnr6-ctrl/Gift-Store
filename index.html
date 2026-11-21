@@ -863,9 +863,11 @@ async function buyStars() {
 }
 
 /* =========================================================
-   GIFTS MARKETPLACE LOGIC
+   GIFTS MARKETPLACE LOGIC (Connected to Railway)
    ========================================================= */
-const WORKER_URL = 'https://gift-api.fcwtgmdswg.workers.dev/'; 
+// 🔴 اینجا آدرس دامنه خودت توی Railway رو گذاشتم
+const RAILWAY_URL = 'https://gift-store-production.up.railway.app/api/gifts';
+
 let currentGiftFilter = 'all';
 let selectedGift = null;
 let giftQuantity = 1;
@@ -878,30 +880,30 @@ async function renderGifts(filter = 'all') {
   if (liveGifts.length === 0) {
     grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #888;">Loading gifts from Telegram...</div>';
     try {
-      const response = await fetch(WORKER_URL);
+      const response = await fetch(RAILWAY_URL);
       const data = await response.json();
       
-      if (!data.ok || !data.result || !data.result.gifts) {
+      if (data.status !== "success" || !data.data) {
         throw new Error('Failed to load gifts');
       }
 
-      liveGifts = data.result.gifts.map(gift => {
-        const tonPrice = (gift.star_count * 0.015).toFixed(2); 
-        const imgUrl = `https://ui-avatars.com/api/?name=${gift.sticker?.emoji || 'Gift'}&background=2c2c2e&color=fff`;
+      liveGifts = data.data.map(gift => {
+        // چون کتابخانه لینک عکس نداره، از آواتار استفاده می‌کنیم
+        const imgUrl = `https://ui-avatars.com/api/?name=${gift.name || 'Gift'}&background=2c2c2e&color=fff`;
 
         return {
-          id: gift.id,
-          name: gift.sticker?.emoji || 'Gift',
-          serial: `#${gift.id}`,
-          price: tonPrice,
+          id: gift.name, // از اسم به عنوان آی‌دی استفاده می‌کنیم
+          name: gift.name || 'Gift',
+          serial: `#${Math.floor(Math.random()*1000)}`, // یه سریال رندوم
+          price: gift.price,
           image: imgUrl, 
-          popularity: gift.remaining_count || 0,
-          stock: gift.remaining_count || 0
+          popularity: Math.random() * 100,
+          stock: 100
         };
       });
     } catch (e) {
       console.error('Error fetching gifts:', e);
-      grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #ff6b6b;">Failed to load gifts.</div>';
+      grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #ff6b6b;">Failed to load gifts. Check console.</div>';
       return;
     }
   }
@@ -911,17 +913,17 @@ async function renderGifts(filter = 'all') {
   else if (filter === 'cheap') filtered.sort((a, b) => a.price - b.price);
 
   grid.innerHTML = filtered.map(gift => `
-    <div class="gift-card" onclick="openGiftModal(${gift.id})">
+    <div class="gift-card" onclick="openGiftModal('${gift.id}')">
       <div class="gift-image-wrapper">
         <img src="${gift.image}" alt="${gift.name}" loading="lazy" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=2c2c2e&color=fff'">
       </div>
       <div class="gift-card-title">${gift.name}</div>
       <div class="gift-card-serial">${gift.serial}</div>
       <div class="gift-card-actions" onclick="event.stopPropagation()">
-        <button class="gift-price-btn" onclick="openGiftModal(${gift.id})">
+        <button class="gift-price-btn" onclick="openGiftModal('${gift.id}')">
           ${gift.price} <svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg>
         </button>
-        <button class="gift-cart-btn" onclick="openGiftModal(${gift.id})">
+        <button class="gift-cart-btn" onclick="openGiftModal('${gift.id}')">
           <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
         </button>
       </div>
@@ -951,7 +953,7 @@ function renderHomeGifts() {
 }
 
 function openGiftModal(giftId) {
-  selectedGift = liveGifts.find(g => g.id === giftId);
+  selectedGift = liveGifts.find(g => g.id == giftId);
   if (!selectedGift) return;
   
   giftQuantity = 1;
