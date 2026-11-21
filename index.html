@@ -399,9 +399,8 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
     </div>
     <h2 class="modal-title" id="modal-gift-name">Gift Name</h2>
     
-    <!-- 🔴 دکمه لینک تلگرام اینجا اضافه شد -->
     <div style="text-align: center; margin-bottom: 20px;">
-        <a id="modal-gift-link" href="#" target="_blank" style="color: #60aaf5; font-size: 14px; text-decoration: none; font-weight: 600;">↗ View in Telegram</a>
+        <a id="modal-gift-link" href="#" target="_blank" style="color: #60aaf5; font-size: 14px; text-decoration: none; font-weight: 600; display: none;">↗ View in Telegram</a>
     </div>
 
     <div class="modal-total-row">
@@ -859,7 +858,7 @@ async function renderGifts(filter = 'all') {
   const grid = document.getElementById('gifts-grid');
   
   if (liveGifts.length === 0) {
-    grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #888;">Loading gifts from Telegram...</div>';
+    grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #888; grid-column: 1/-1;">Loading gifts from Telegram...</div>';
     try {
       const response = await fetch(RAILWAY_URL);
       const data = await response.json();
@@ -878,14 +877,14 @@ async function renderGifts(filter = 'all') {
           price: gift.price,
           image: imgUrl, 
           link: gift.link || '',
-          bg_color: gift.bg_color || 'transparent', // 🔴 رنگ رو می‌گیریم
+          bg_color: gift.bg_color || 'transparent', 
           popularity: Math.random() * 100,
           stock: 100
         };
       });
     } catch (e) {
       console.error('Error fetching gifts:', e);
-      grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #ff6b6b;">Failed to load gifts. Check console.</div>';
+      grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #ff6b6b; grid-column: 1/-1;">Failed to load gifts. Check console.</div>';
       return;
     }
   }
@@ -894,14 +893,19 @@ async function renderGifts(filter = 'all') {
   if (filter === 'popular') filtered.sort((a, b) => b.popularity - a.popularity);
   else if (filter === 'cheap') filtered.sort((a, b) => a.price - b.price);
 
+  // رندر کارت ها با دکمه لینک زیر اسم
   grid.innerHTML = filtered.map(gift => `
     <div class="gift-card" onclick="openGiftModal('${gift.id}')">
-      <!-- 🔴 اینجا رنگ بک‌گراند رو به باکس عکس میدیم -->
       <div class="gift-image-wrapper" style="background: ${gift.bg_color};">
         <img src="${gift.image}" alt="${gift.name}" loading="lazy" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=transparent&color=fff'">
       </div>
       <div class="gift-card-title">${gift.name}</div>
-      <div class="gift-card-serial">${gift.serial}</div>
+      
+      <!-- دکمه View in Telegram زیر اسم -->
+      <div style="margin-bottom: 8px; height: 18px;">
+        ${gift.link ? `<a href="${gift.link}" target="_blank" onclick="event.stopPropagation()" style="color: #60aaf5; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">↗ View in Telegram</a>` : ''}
+      </div>
+
       <div class="gift-card-actions" onclick="event.stopPropagation()">
         <button class="gift-price-btn" onclick="openGiftModal('${gift.id}')">
           ${gift.price} <svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg>
@@ -939,16 +943,15 @@ function openGiftModal(giftId) {
   selectedGift = liveGifts.find(g => g.id == giftId);
   if (!selectedGift) return;
   
-  // 🔴 تعداد همیشه یدونه است
   giftQuantity = 1; 
   
-  // 🔴 دادن رنگ به مودال
+  // دادن رنگ به مودال
   document.getElementById('modal-gift-preview').style.background = selectedGift.bg_color;
   document.getElementById('modal-gift-preview').innerHTML = `<img src="${selectedGift.image}" alt="${selectedGift.name}" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=transparent&color=fff'">`;
   
   document.getElementById('modal-gift-name').textContent = selectedGift.name;
   
-  // 🔴 تنظیم لینک تلگرام
+  // تنظیم لینک تلگرام توی مودال
   const linkEl = document.getElementById('modal-gift-link');
   if (selectedGift.link) {
       linkEl.href = selectedGift.link;
