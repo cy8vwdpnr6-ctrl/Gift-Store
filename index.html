@@ -887,13 +887,19 @@ async function renderGifts(filter = 'all') {
       }
 
       liveGifts = data.data.map(gift => {
-        // اگر عکس از بک‌اند اومد استفاده کن، وگرنه آواتار حروف
+        // استفاده از عکس بک‌اند، اگر نبود آواتار حروف
         const imgUrl = gift.image_url || `https://ui-avatars.com/api/?name=${gift.name || 'Gift'}&background=2c2c2e&color=fff`;
+
+        // کوتاه کردن سریال‌های طولانی
+        let serialText = gift.serial || '';
+        if (serialText.length > 8) {
+           serialText = '#' + serialText.replace('#', '').slice(-5);
+        }
 
         return {
           id: gift.name, 
           name: gift.name || 'Gift',
-          serial: gift.serial || '#000', // استفاده از سریال واقعی
+          serial: serialText || '#000',
           price: gift.price,
           image: imgUrl, 
           popularity: Math.random() * 100,
