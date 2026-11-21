@@ -12,7 +12,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# 🔴 اینجا حالت کش رو روی HTTP تنظیم کردیم که به git نیاز نداشته باشه
+# حالت http که به git نیاز نداشته باشه
 gifts_lib = TelegramGifts(cache_mode="http", asset_mode="lazy")
 
 @dp.message(Command("gifts"))
@@ -39,18 +39,19 @@ async def get_gifts_api():
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        # 🔴 استخراج شماره و لینک عکس
-                        # کتابخانه معمولاً شماره سریال و آیدی مدل رو داره
-                        serial_num = info.get('slug', '') or info.get('id', '')
+                        # 🔴 استخراج سریال (slug) و لینک عکس
+                        # فیلد slug معمولاً شماره سریال رو داره
+                        serial = info.get('slug', '')
                         
-                        # برای عکس، از لینک مستقیم CDN تلگرام یا فایل لوکال استفاده می‌کنیم
-                        # فعلاً یه لینک پیش‌فرض می‌ذاریم، بعدا درستش می‌کنیم
-                        img_url = info.get('sticker', {}).get('thumb_url', '') 
+                        # تلاش برای گرفتن لینک عکس از اطلاعات استیکر
+                        img_url = info.get('sticker', {}).get('thumb_url', '')
+                        if not img_url:
+                            img_url = info.get('image', '') 
                         
                         result.append({
                             "name": name,
                             "price": price,
-                            "serial": f"#{serial_num}" if serial_num else "#000",
+                            "serial": f"#{serial}" if serial else "",
                             "image_url": img_url
                         })
             except Exception:
