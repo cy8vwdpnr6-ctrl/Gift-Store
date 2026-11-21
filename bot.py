@@ -37,19 +37,26 @@ async def get_gifts_api():
                     if name not in seen:
                         seen.add(name)
                         
-                        # 1. قیمت
+                        # قیمت
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        # 2. لینک (تضمینی با اسم گیفت)
+                        # 🔴 ساخت لینک واقعی تلگرام
+                        # اسم رو تمیز میکنیم (حذف فاصله و آپاستروف) و شماره سریال رو اضافه میکنیم
                         clean_name = name.replace(" ", "").replace("'", "").replace("-", "")
-                        gift_link = f"https://t.me/nft/{clean_name}"
+                        serial = info.get('number', '') or info.get('serial', '')
                         
-                        # 3. عکس
+                        if serial:
+                            gift_link = f"https://t.me/nft/{clean_name}-{serial}"
+                        else:
+                            # اگر شماره سریال نبود، لینک ساخته نمیشه
+                            gift_link = ""
+                        
+                        # عکس
                         links = info.get('links', {})
                         img_url = links.get('webp', '') or links.get('png', '') or links.get('jpg', '')
                         
-                        # 4. بک‌گراند
+                        # بک‌گراند
                         backdrop = info.get('backdrop', {})
                         bg_color = ""
                         
