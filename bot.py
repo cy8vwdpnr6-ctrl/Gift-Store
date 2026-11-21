@@ -12,7 +12,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# حالت http که به git نیاز نداشته باشه
 gifts_lib = TelegramGifts(cache_mode="http", asset_mode="lazy")
 
 @dp.message(Command("gifts"))
@@ -31,7 +30,6 @@ async def get_gifts_api():
 
         for gift in regular_gifts:
             try:
-                # گرفتن اطلاعات آپگرید شده (NFT) با همون اسم
                 info = gifts_lib.get_gift(gift.full_name, gift_type="upgraded")
                 
                 if info:
@@ -39,23 +37,24 @@ async def get_gifts_api():
                     if name not in seen:
                         seen.add(name)
                         
-                        # 🔴 استخراج قیمت
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        # 🔴 استخراج شماره سریال واقعی (slug)
-                        # این فیلد دقیقاً شماره سریال کالکشن رو داره
-                        serial = info.get('slug', '')
+                        slug = info.get('slug', '')
+                        gift_link = f"https://t.me/nft/{slug}" if slug else ""
                         
-                        # 🔴 استخراج لینک عکس (webp)
-                        # لینک عکس توی دیکشنری links و کلید webp هست
                         img_url = info.get('links', {}).get('webp', '')
+                        
+                        # 🔴 استخراج رنگ پس‌زمینه
+                        # تلگرام معمولاً اینو به صورت هگز (مثل #ff0000) میده
+                        bg_color = info.get('background_color', '') or info.get('bg_color', '')
                         
                         result.append({
                             "name": name,
                             "price": price,
-                            "serial": f"#{serial}" if serial else "",
-                            "image_url": img_url
+                            "link": gift_link,
+                            "image_url": img_url,
+                            "bg_color": bg_color # ارسال رنگ به فرانت‌اند
                         })
             except Exception:
                 continue
