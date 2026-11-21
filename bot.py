@@ -1,8 +1,8 @@
 import os
 import asyncio
-import httpx
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
+from TelegramGifts import TelegramGifts
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +12,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+gifts_lib = TelegramGifts(cache_mode="http", asset_mode="lazy")
+
 @dp.message(Command("gifts"))
 async def show_gifts(message: types.Message):
     await message.answer("از مینی‌اپ استفاده کن!")
@@ -19,50 +21,79 @@ async def show_gifts(message: types.Message):
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# این آدرس API غیررسمی فرگمنته که لینک و رنگ و عکس رو با هم میده
-FRAGMENT_API = "https://api.fragment-api.com/v1/gifts" 
-
 @app.get("/api/gifts")
 async def get_gifts_api():
     try:
+        regular_gifts = gifts_lib.get_regular_gifts()
         result = []
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            # گرفتن لیست کامل از فرگمنت
-            response = await client.get(FRAGMENT_API)
-            
-            if response.status_code == 200:
-                data = response.json()
-                gifts_list = data.get('gifts', [])
-                
-                for gift in gifts_list:
-                    # استخراج اطلاعات
-                    name = gift.get('name', 'Unknown Gift')
-                    price = gift.get('price', 0)
-                    
-                    # لینک اختصاصی (مثلا https://t.me/nft/KhabibsPapakha)
-                    slug = gift.get('slug', '')
-                    link = f"https://t.me/nft/{slug}" if slug else ""
-                    
-                    # عکس
-                    image = gift.get('image_url', '')
-                    
-                    # رنگ بک‌گراند (اگر API بده)
-                    bg_color = gift.get('background_color', '') or gift.get('bg_color', '')
-                    if bg_color and not bg_color.startswith('#'):
-                        bg_color = f"#{bg_color}"
+        seen = set()
 
-                    result.append({
-                        "name": name,
-                        "price": price,
-                        "link": link,
-                        "image_url": image,
-                        "bg_color": bg_color 
-                    })
-                    
+        for gift in regular_gifts:
+            try:
+                # دریافت اطلاعات کامل (شامل مدل آپگرید شده)
+                info = gifts_lib.get_gift(gift.full_name, gift_type="upgraded")
+                
+                if info:
+                    name = info.get('full_name', gift.full_name)
+                    if name not in seen:
+                        seen.add(name)
+                        
+                        # 1. استخراج قیمت
+                        prices = info.get('prices', {})
+                        price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
+                        
+                        # 2. استخراج لینک (slug)
+                        # تلگرام از فیلد slug برای ساخت لینک t.me/nft استفاده می‌کند
+                        slug = info.get('slug', '')
+                        if not slug:
+                            # اگر slug نبود، از فیلد name داخل info استفاده می‌کنیم
+                            slug = info.get('name', '')
+                        
+                        # اگر باز هم خالی بود، از خود شیء gift استفاده می‌کنیم
+                        if not slug and hasattr(gift, 'slug'):
+                            slug = gift.slug
+                        
+                        gift_link = f"https://t.me/nft/{slug}" if slug else ""
+                        
+                        # 3. استخراج عکس با کیفیت بالا
+                        links = info.get('links', {})
+                        img_url = links.get('webp', '') or links.get('png', '') or links.get('jpg', '')
+                        
+                        # 4. استخراج بک‌گراند
+                        # بر اساس مستندات کتابخانه، اطلاعات بک‌گراند در فیلد backdrop موجود است
+                        backdrop = info.get('backdrop', {})
+                        bg_color = ""
+                        if isinstance(backdrop, dict):
+                            # گاهی اوقات رنگ به صورت gradient_from و gradient_to ذخیره می‌شود
+                            bg_color = backdrop.get('gradient_from', '') or backdrop.get('color', '')
+                        elif isinstance(backdrop, str):
+                            bg_color = backdrop
+                        
+                        # اگر رنگ پیدا نشد، از فیلدهای دیگر تلاش می‌کنیم
+                        if not bg_color:
+                            bg_color = info.get('background_color', '') or info.get('background', '')
+                        
+                        # اطمینان از فرمت هگز
+                        if bg_color and not str(bg_color).startswith('#'):
+                            bg_color = f"#{bg_color}"
+
+                        result.append({
+                            "name": name,
+                            "price": price,
+                            "link": gift_link,
+                            "image_url": img_url,
+                            "bg_color": bg_color 
+                        })
+            except Exception as e:
+                print(f"Error processing {gift.full_name}: {e}")
+                continue
+            
+            if len(result) >= 100: # محدودیت برای سرعت
+                break
+
         return {"status": "success", "data": result}
         
     except Exception as e:
-        print(f"Error: {e}")
         return {"status": "error", "message": f"خطای کلی: {str(e)}"}
 
 async def main():
