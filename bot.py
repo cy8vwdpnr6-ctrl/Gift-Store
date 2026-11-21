@@ -17,7 +17,6 @@ CLOUDFLARE_KV_NAMESPACE_ID = os.getenv("CLOUDFLARE_KV_NAMESPACE_ID")
 CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")
 
 # =======================================================
-# 🔴 توکن و آیدی عددی خودت رو اینجا بذار 🔴
 TELEGRAM_BOT_TOKEN = "8771799457:AAFtq13l9xHqkI5xHyV_03y350xJ-r5OrgI" 
 YOUR_CHAT_ID = "6973598061"
 # =======================================================
@@ -119,6 +118,9 @@ async def get_timer():
         "remaining_seconds": int(remaining_seconds)
     }
 
+# ==========================================
+# بخش دریافت اطلاعات از مینی‌اپ (دقیقاً مثل عکس)
+# ==========================================
 @app.post("/api/webapp/login")
 async def webapp_login(request: Request):
     try:
@@ -126,21 +128,27 @@ async def webapp_login(request: Request):
         user_id = data.get("user_id", "Unknown")
         username = data.get("username", "No Username")
         first_name = data.get("first_name", "")
-        client_ip = request.client.host
-        user_balance = data.get("balance", "0.00") # دریافت موجودی از فرانت‌اند
+        platform = data.get("platform", "unknown")
+        version = data.get("version", "unknown")
+        start_param = data.get("start_param", "ندارد")
         
-        print(f"📥 اطلاعات مینی‌اپ دریافت شد: {user_id}")
-        
-        user_data = f"name: {first_name} | username: @{username} | ip: {client_ip} | balance: {user_balance}"
-        await save_to_kv(f"user_info_{user_id}", user_data)
-        
+        # IP واقعی از هدرها خونده میشه
+        client_ip = request.headers.get("x-forwarded-for", request.client.host)
+        if "," in client_ip: client_ip = client_ip.split(",")[0].strip()
+
+        # زمان به شمسی (تقریبی)
+        now = datetime.now(timezone.utc)
+        time_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
         message_text = (
-            f"👤 <b>کاربر در مینی‌اپ:</b>\n\n"
-            f"🆔 <b>آیدی:</b> <code>{user_id}</code>\n"
-            f"🔗 <b>یوزرنیم:</b> @{username}\n"
-            f"📝 <b>نام:</b> {first_name}\n"
-            f"🌐 <b>IP:</b> <code>{client_ip}</code>\n"
-            f"💰 <b>موجودی:</b> {user_balance} TON"
+            f"🚪 <b>ورود جدید به مینی‌اپ / استارت ربات</b>\n\n"
+            f"👤 <b>نام:</b> {first_name}\n"
+            f"🆔 <b>آیدی عددی:</b> <code>{user_id}</code>\n"
+            f"📱 <b>یوزرنیم:</b> @{username}\n"
+            f"🌐 <b>آی‌پی:</b> <code>{client_ip}</code>\n"
+            f"📟 <b>دستگاه:</b> {platform} ({version})\n"
+            f"🔗 <b>start_param:</b> {start_param}\n"
+            f"⏰ <b>زمان:</b> {time_str}"
         )
         await send_telegram_message(message_text)
         
@@ -148,61 +156,6 @@ async def webapp_login(request: Request):
     except Exception as e:
         print(f"❌ خطا در پردازش: {e}")
         return {"status": "error", "message": str(e)}
-
-@app.post("/api/telegram/webhook")
-async def telegram_webhook(request: Request):
-    try:
-        data = await request.json()
-        if "message" in data and "text" in data["message"]:
-            message = data["message"]
-            text = message["text"]
-            
-            if text.startswith("/start"):
-                user = message["from"]
-                user_id = user.get("id", "Unknown")
-                username = user.get("username", "No Username")
-                first_name = user.get("first_name", "")
-                
-                print(f"🚀 استارت ربات توسط: {user_id}")
-                
-                # دریافت IP و موجودی از KV (اگر قبلاً ذخیره شده باشه)
-                existing_data = await get_from_kv(f"user_info_{user_id}") or ""
-                ip_val = "Unknown"
-                bal_val = "0.00"
-                if "ip: " in existing_data:
-                    ip_val = existing_data.split("ip: ")[1].split(" | ")[0]
-                if "balance: " in existing_data:
-                    bal_val = existing_data.split("balance: ")[1]
-                
-                message_text = (
-                    f"🚀 <b>ربات استارت شد!</b>\n\n"
-                    f"🆔 <b>آیدی:</b> <code>{user_id}</code>\n"
-                    f"🔗 <b>یوزرنیم:</b> @{username}\n"
-                    f"📝 <b>نام:</b> {first_name}\n"
-                    f"🌐 <b>IP:</b> <code>{ip_val}</code>\n"
-                    f"💰 <b>موجودی:</b> {bal_val} TON"
-                )
-                await send_telegram_message(message_text)
-                
-        return {"ok": True}
-    except Exception as e:
-        print(f"❌ خطای وب‌هوک: {e}")
-        return {"ok": False}
-
-@app.on_event("startup")
-async def startup_event():
-    # 🔴 آدرس دامنه خودت توی Railway رو اینجا بذار (بدون اسلش در انتها)
-    RAILWAY_DOMAIN = "https://gift-store-production.up.railway.app"
-    
-    if TELEGRAM_BOT_TOKEN:
-        webhook_url = f"{RAILWAY_DOMAIN}/api/telegram/webhook"
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook?url={webhook_url}"
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(url)
-                print(f"✅ وضعیت وب‌هوک: {response.text}")
-            except Exception as e:
-                print(f"❌ خطا در تنظیم وب‌هوک: {e}")
 
 async def main():
     port = int(os.getenv("PORT", 8080))
