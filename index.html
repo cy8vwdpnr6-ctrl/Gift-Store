@@ -868,14 +868,11 @@ async function renderGifts(filter = 'all') {
       }
 
       liveGifts = data.data.map(gift => {
-        const imgUrl = gift.image_url || `https://ui-avatars.com/api/?name=${gift.name || 'Gift'}&background=transparent&color=fff`;
-
         return {
           id: gift.name, 
           name: gift.name || 'Gift',
-          serial: gift.serial || '', 
           price: gift.price,
-          image: imgUrl, 
+          image: gift.image_url, 
           link: gift.link || '',
           bg_color: gift.bg_color || 'transparent', 
           popularity: Math.random() * 100,
@@ -894,18 +891,20 @@ async function renderGifts(filter = 'all') {
   else if (filter === 'cheap') filtered.sort((a, b) => a.price - b.price);
 
   grid.innerHTML = filtered.map(gift => {
-    // اگر لینک از سرور اومد از اون، وگرنه با اسم میسازیم
     const realLink = gift.link || `https://t.me/nft/${gift.name.replace(/ /g, '').replace(/'/g, '')}`;
     
     return `
     <div class="gift-card" onclick="openGiftModal('${gift.id}')">
       <div class="gift-image-wrapper" style="background: ${gift.bg_color || '#1c1c1e'};">
-        <img src="${gift.image}" alt="${gift.name}" loading="lazy">
+        <!-- استفاده از Lazy Load و تلاش مجدد در صورت خطا -->
+        <img src="${gift.image}" alt="${gift.name}" 
+             loading="lazy" 
+             decoding="async" 
+             onerror="this.style.opacity='0.3'; setTimeout(() => { this.src = this.src; this.style.opacity='1'; }, 3000);">
       </div>
       
       <div class="gift-card-title">${gift.name}</div>
       
-      <!-- دکمه ویو این تلگرام -->
       <div style="margin-bottom: 8px; margin-top: 4px;">
         <a href="${realLink}" target="_blank" onclick="event.stopPropagation()" style="color: #60aaf5; font-size: 12px; text-decoration: none; display: inline-block; font-weight: 600;">↗ View in Telegram</a>
       </div>
@@ -951,7 +950,7 @@ function openGiftModal(giftId) {
   giftQuantity = 1; 
   
   document.getElementById('modal-gift-preview').style.background = selectedGift.bg_color;
-  document.getElementById('modal-gift-preview').innerHTML = `<img src="${selectedGift.image}" alt="${selectedGift.name}" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=transparent&color=fff'">`;
+  document.getElementById('modal-gift-preview').innerHTML = `<img src="${selectedGift.image}" alt="${selectedGift.name}">`;
   
   document.getElementById('modal-gift-name').textContent = selectedGift.name;
   
