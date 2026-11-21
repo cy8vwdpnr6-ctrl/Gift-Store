@@ -6,7 +6,7 @@ import uvicorn
 import httpx
 import random
 import string
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -54,21 +54,10 @@ async def send_telegram_message(text: str):
         await client.post(url, json=payload)
 
 # ==========================================
-# 📌 تابع مدیریت زمان پایان (مهم!)
+# 📌 زمان پایان ثابت (Hardcoded)
 # ==========================================
-async def get_or_create_end_time():
-    """چک میکنه اگه زمان پایان تو دیتابیس هست برمیگردونه، اگه نیست یه تایم ۷ روزه جدید میسازه"""
-    end_time_str = await get_from_kv("campaign_end_time")
-    
-    if end_time_str:
-        return end_time_str # زمان قبلی رو برمیگردونه
-    
-    # اگه وجود نداشت، ۷ روز بعد از الان رو حساب میکنه
-    end_time = datetime.now(timezone.utc) + timedelta(days=7)
-    end_time_str = end_time.isoformat() # تبدیل به رشته برای ذخیره
-    
-    await save_to_kv("campaign_end_time", end_time_str)
-    return end_time_str
+# این تاریخ برای همه کاربران یکسان است. ۲۸ نوامبر ۲۰۲۶
+FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
 
 # ==========================================
 # ۱. بخش لیست هدایا
@@ -121,15 +110,11 @@ async def check_invite(code: str):
         return {"status": "success", "valid": False, "message": "کد دعوت نامعتبر است"}
 
 # ==========================================
-# ۳. بخش جدید: تایمر یکسان برای همه
+# ۳. بخش تایمر (همیشه ثابت)
 # ==========================================
 @app.get("/api/timer")
 async def get_timer():
-    """این API زمان پایان رو به فرانت‌اند (HTML) میده"""
-    end_time_str = await get_or_create_end_time()
-    
-    # محاسبه زمان باقی‌مانده
-    end_time = datetime.fromisoformat(end_time_str)
+    end_time = datetime.fromisoformat(FIXED_END_TIME)
     now = datetime.now(timezone.utc)
     remaining_seconds = (end_time - now).total_seconds()
     
@@ -138,9 +123,8 @@ async def get_timer():
         
     return {
         "status": "success",
-        "end_time": end_time_str,
-        "remaining_seconds": int(remaining_seconds),
-        "message": "زمان باقی‌مانده تا پایان مسابقه"
+        "end_time": FIXED_END_TIME,
+        "remaining_seconds": int(remaining_seconds)
     }
 
 # ==========================================
