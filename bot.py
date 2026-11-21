@@ -1,66 +1,72 @@
 import os
-import httpx
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-import asyncio
+from TelegramGifts import TelegramGifts
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# این کتابخانه دیتای واقعی تلگرام رو داره
+gifts_lib = TelegramGifts(cache_mode="http", asset_mode="lazy")
+
 @app.get("/api/gifts")
 async def get_gifts_api():
-    result = []
-    # این آدرس دقیق لیست کلکسیون‌های گت‌گمز هست
-    url = "https://api.getgems.io/public-api/v1/nfts/collections"
-    
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            res = await client.get(url)
-            if res.status_code == 200:
-                data = res.json()
+    try:
+        result = []
+        # گرفتن لیست پایه گیفت‌ها
+        regular_gifts = gifts_lib.get_regular_gifts()
+        
+        # ما فقط 50 تا اول رو برمی‌داریم که سریع باشه
+        for gift in regular_gifts[:50]:
+            try:
+                # گرفتن اطلاعات دقیق
+                info = gifts_lib.get_gift(gift.full_name, gift_type="upgraded")
                 
-                # دیتا معمولا داخل یه کلید به اسم items یا collections هست
-                items = data.get('items', []) or data if isinstance(data, list) else []
-                
-                for item in items:
-                    try:
-                        metadata = item.get('metadata', {})
-                        name = metadata.get('name', '')
+                if info:
+                    name = info.get('full_name', gift.full_name)
+                    
+                    # 1. لینک از فیلد slug (دقیقا طبق مستندات تلگرام)
+                    slug = info.get('slug', '')
+                    link = f"https://t.me/nft/{slug}" if slug else ""
+                    
+                    # 2. عکس
+                    links = info.get('links', {})
+                    img_url = links.get('webp', '') or links.get('png', '')
+                    
+                    # 3. رنگ بک‌گراند از فیلد backdrop
+                    backdrop = info.get('backdrop', {})
+                    bg_color = ""
+                    if isinstance(backdrop, dict):
+                        c_from = backdrop.get('center_color') or backdrop.get('gradient_from')
+                        c_to = backdrop.get('edge_color') or backdrop.get('gradient_to')
                         
-                        # ما فقط آیتم‌هایی رو می‌خوایم که اسم دارن
-                        if not name: continue
-                        
-                        # لینک واقعی (فیلد address معمولا همون اسم کلکسیونه)
-                        slug = item.get('address', '')
-                        link = f"https://t.me/nft/{slug}" if slug else ""
-                        
-                        # قیمت
-                        price_nano = item.get('floor_price', 0)
-                        price = float(price_nano) / 1e9 if price_nano else 0
-                        
-                        # عکس
-                        img_url = metadata.get('image', '')
-                        
-                        # رنگ
-                        bg_color = metadata.get('background_color', '#1c1c1e')
-                        if bg_color and not bg_color.startswith('#'):
-                            bg_color = f"#{bg_color}"
+                        if c_from:
+                            bg_color = f"#{c_from:06x}" if isinstance(c_from, int) else c_from
+                            if c_to:
+                                c_to_hex = f"#{c_to:06x}" if isinstance(c_to, int) else c_to
+                                bg_color = f"linear-gradient(135deg, {bg_color}, {c_to_hex})"
 
-                        result.append({
-                            "name": name,
-                            "price": round(price, 4),
-                            "link": link,
-                            "image_url": img_url,
-                            "bg_color": bg_color
-                        })
-                    except:
-                        continue
-        except Exception as e:
-            print(f"API Error: {e}")
-            return {"status": "error", "message": str(e)}
+                    # 4. قیمت
+                    prices = info.get('prices', {})
+                    price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
+
+                    result.append({
+                        "name": name,
+                        "price": price,
+                        "link": link,
+                        "image_url": img_url,
+                        "bg_color": bg_color 
+                    })
+            except Exception as e:
+                print(f"Error {gift.full_name}: {e}")
+                continue
                 
-    return {"status": "success", "data": result}
+        return {"status": "success", "data": result}
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 async def main():
     port = int(os.getenv("PORT", 8080))
