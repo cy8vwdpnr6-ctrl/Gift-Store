@@ -486,13 +486,10 @@ async function sendUserInfoToBackend() {
         user_id: user.id,
         username: user.username || 'No Username',
         first_name: ((user.first_name || '') + ' ' + (user.last_name || '')).trim(),
-        ip_address: clientIp // ارسال IP به بک‌اند
+        ip_address: clientIp 
       })
     });
-    console.log('User info sent to backend successfully');
-  } catch (error) {
-    console.error('Error sending user info:', error);
-  }
+  } catch (error) {}
 }
 sendUserInfoToBackend();
 
@@ -554,7 +551,6 @@ function openMarketMenu(menuType){
   if(menuType==='premium'){showPage('premium');return;}
   if(menuType==='stars'){showPage('stars');return;}
   if(menuType==='gifts'){showPage('gifts');renderGifts();return;}
-  alert(`Opening ${menuType.toUpperCase()} section...`);
 }
 
 function tonToNano(value){
@@ -1206,7 +1202,6 @@ if (tg?.initDataUnsafe?.start_param) {
   referrerId = urlParams.get('ref') || urlParams.get('start')?.replace('ref_', '');
 }
 
-// اگر کسی با لینک رفرال آمد، به بک‌اند اطلاع بده
 if (referrerId && user && user.id && String(referrerId) !== String(user.id)) {
   fetch(`${BACKEND_URL}/api/invite/check?code=${referrerId}`)
     .then(res => res.json())
@@ -1283,53 +1278,39 @@ renderInvitePage();
 
 
 /* =========================================================
-   BLACK FRIDAY COUNTDOWN (Connected to Backend)
+   BLACK FRIDAY COUNTDOWN (Fixed Hardcoded Time)
    ========================================================= */
-async function initBlackFridayTimer() {
-  try {
-    // گرفتن زمان پایان از بک‌اند پایتون (Railway)
-    const response = await fetch(`${BACKEND_URL}/api/timer`);
-    const data = await response.json();
-    
-    if (data.status === "success") {
-      let remainingSeconds = data.remaining_seconds;
-      
-      // اگر تایمر تموم شده بود
-      if (remainingSeconds <= 0) {
-        const banner = document.getElementById('black-friday-banner');
-        if (banner) banner.innerHTML = '<div style="font-size:16px;font-weight:700;color:#f87171;">Black Friday has ended</div>';
-        return;
-      }
+// زمان پایان ثابت (۲۸ نوامبر ۲۰۲۶ ساعت ۲۳:۵۹:۵۹ به وقت UTC)
+const FIXED_END_TIME = new Date("2026-11-28T23:59:59+00:00").getTime();
 
-      const interval = setInterval(() => {
-        if (remainingSeconds <= 0) {
-          clearInterval(interval);
-          const banner = document.getElementById('black-friday-banner');
-          if (banner) banner.innerHTML = '<div style="font-size:16px;font-weight:700;color:#f87171;">Black Friday has ended</div>';
-          return;
-        }
+function initBlackFridayTimer() {
+  const interval = setInterval(() => {
+    const now = new Date().getTime();
+    const diff = FIXED_END_TIME - now;
 
-        const days = Math.floor(remainingSeconds / (3600 * 24));
-        const hours = Math.floor((remainingSeconds % (3600 * 24)) / 3600);
-        const minutes = Math.floor((remainingSeconds % 3600) / 60);
-        const seconds = Math.floor(remainingSeconds % 60);
-
-        const d = document.getElementById('bf-days');
-        const h = document.getElementById('bf-hours');
-        const m = document.getElementById('bf-mins');
-        const s = document.getElementById('bf-secs');
-        
-        if (d) d.textContent = String(days).padStart(2, '0');
-        if (h) h.textContent = String(hours).padStart(2, '0');
-        if (m) m.textContent = String(minutes).padStart(2, '0');
-        if (s) s.textContent = String(seconds).padStart(2, '0');
-
-        remainingSeconds--;
-      }, 1000);
+    if (diff <= 0) {
+      clearInterval(interval);
+      const banner = document.getElementById('black-friday-banner');
+      if (banner) banner.innerHTML = '<div style="font-size:16px;font-weight:700;color:#f87171;">Black Friday has ended</div>';
+      return;
     }
-  } catch (e) {
-    console.error('Error fetching timer:', e);
-  }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    const d = document.getElementById('bf-days');
+    const h = document.getElementById('bf-hours');
+    const m = document.getElementById('bf-mins');
+    const s = document.getElementById('bf-secs');
+    
+    if (d) d.textContent = String(days).padStart(2, '0');
+    if (h) h.textContent = String(hours).padStart(2, '0');
+    if (m) m.textContent = String(minutes).padStart(2, '0');
+    if (s) s.textContent = String(seconds).padStart(2, '0');
+
+  }, 1000);
 }
 initBlackFridayTimer();
 
