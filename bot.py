@@ -11,12 +11,12 @@ from datetime import datetime, timezone
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# 🔴 متغیرهای محیطی (از Railway خونده میشن)
 PORTALS_TOKEN = os.getenv("PORTALS_TOKEN", "tma query_id=AAFtFsxzAwAAAG0WzHNu5skJ&user=...")
 CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 CLOUDFLARE_KV_NAMESPACE_ID = os.getenv("CLOUDFLARE_KV_NAMESPACE_ID")
 CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")
 
+# این دو متغیر باید حتماً توی تنظیمات Railway (بخش Variables) باشن
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 YOUR_CHAT_ID = os.getenv("YOUR_CHAT_ID", "")
 
@@ -46,7 +46,7 @@ async def get_from_kv(key: str):
 
 async def send_telegram_message(text: str):
     if not TELEGRAM_BOT_TOKEN or not YOUR_CHAT_ID:
-        print("❌ توکن ربات یا Chat ID تنظیم نشده است.")
+        print("❌ خطا: توکن ربات یا Chat ID در تنظیمات Railway وجود ندارد.")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": YOUR_CHAT_ID, "text": text, "parse_mode": "HTML"}
@@ -54,12 +54,14 @@ async def send_telegram_message(text: str):
         try:
             response = await client.post(url, json=payload)
             if response.status_code != 200:
-                print(f"❌ خطای تلگرام: {response.text}")
+                print(f"❌ خطای تلگرام: {response.text}") # چاپ خطا در لاگ‌ها
+            else:
+                print("✅ پیام با موفقیت به تلگرام ارسال شد.")
         except Exception as e:
-            print(f"❌ خطای شبکه: {e}")
+            print(f"❌ خطای شبکه در ارسال پیام: {e}")
 
 # ==========================================
-# 📌 زمان پایان ثابت (Hardcoded)
+# 📌 زمان پایان ثابت
 # ==========================================
 FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
 
@@ -129,7 +131,7 @@ async def get_timer():
     }
 
 # ==========================================
-# ۴. بخش دریافت اطلاعات از مینی‌اپ (Webapp Login)
+# ۴. دریافت اطلاعات از مینی‌اپ (وقتی باز میشه)
 # ==========================================
 @app.post("/api/webapp/login")
 async def webapp_login(request: Request):
@@ -140,7 +142,7 @@ async def webapp_login(request: Request):
         first_name = data.get("first_name", "")
         client_ip = request.client.host
         
-        print(f"📥 دریافت اطلاعات از مینی‌اپ: {user_id}")
+        print(f"📥 دریافت اطلاعات از مینی‌اپ: {user_id}") # لاگ برای تست
         
         user_data = f"name: {first_name} | username: @{username} | ip: {client_ip}"
         await save_to_kv(f"user_info_{user_id}", user_data)
@@ -156,22 +158,21 @@ async def webapp_login(request: Request):
         
         return {"status": "success", "message": "اطلاعات دریافت شد"}
     except Exception as e:
-        print(f"❌ خطا: {e}")
+        print(f"❌ خطا در پردازش: {e}")
         return {"status": "error", "message": str(e)}
 
 # ==========================================
-# ۵. بخش جدید: دریافت پیام‌های تلگرام (Webhook)
+# ۵. دریافت پیام استارت ربات (Webhook)
 # ==========================================
 @app.post("/api/telegram/webhook")
 async def telegram_webhook(request: Request):
     try:
         data = await request.json()
+        print(f"📩 پیام جدید از تلگرام دریافت شد.") # لاگ برای تست
         
-        # چک میکنیم اگر پیام جدیدی از طرف کاربر بود (دکمه استارت)
         if "message" in data and "text" in data["message"]:
             message = data["message"]
             text = message["text"]
-            chat_id = message["chat"]["id"]
             
             # اگر کاربر دکمه استارت رو زد
             if text.startswith("/start"):
@@ -180,13 +181,8 @@ async def telegram_webhook(request: Request):
                 username = user.get("username", "No Username")
                 first_name = user.get("first_name", "")
                 
-                print(f"📥 ربات استارت شد توسط: {user_id}")
+                print(f"🚀 ربات استارت شد توسط: {user_id}") # لاگ برای تست
                 
-                # ذخیره در کلودفلر
-                user_data = f"name: {first_name} | username: @{username} | source: bot_start"
-                await save_to_kv(f"user_info_{user_id}", user_data)
-                
-                # ارسال پیام به خودت
                 message_text = (
                     f"🚀 <b>ربات استارت شد!</b>\n\n"
                     f"🆔 <b>آیدی:</b> <code>{user_id}</code>\n"
@@ -201,11 +197,11 @@ async def telegram_webhook(request: Request):
         return {"ok": False}
 
 # ==========================================
-# ۶. تنظیم Webhook تلگرام
+# ۶. تنظیم Webhook هنگام روشن شدن سرور
 # ==========================================
 @app.on_event("startup")
 async def startup_event():
-    # آدرس دامنه خودت توی Railway رو اینجا بذار (بدون اسلش در انتها)
+    # 🔴 آدرس دامنه پروژه خودت در Railway رو اینجا بذار (بدون اسلش در انتها)
     RAILWAY_DOMAIN = "https://gift-store-production.up.railway.app"
     
     if TELEGRAM_BOT_TOKEN:
