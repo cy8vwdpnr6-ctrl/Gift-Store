@@ -18,61 +18,45 @@ COLOR_MAP = {
 }
 
 @app.get("/api/gifts")
-async def get_gifts_api():
+async def get_gifts_api(offset: int = 0, limit: int = 50):
     try:
         import aportalsmp
         
         result = []
         seen_links = set()
         
-        # 🔴 حلقه با مکث (تاخیر) برای جلوگیری از کرش کردن سرور
-        for offset in range(0, 700, 50):
-            try:
-                listings = await aportalsmp.search(
-                    authData=PORTALS_TOKEN,
-                    gift_name="",
-                    limit=50, 
-                    offset=offset,
-                    sort="price_asc"
-                )
-                
-                if not listings:
-                    break 
-                    
-                for gift in listings:
-                    name = getattr(gift, 'name', 'Unknown')
-                    price = getattr(gift, 'price', 0)
-                    tg_id = getattr(gift, 'tg_id', '')
-                    clean_name = name.replace(" ", "").replace("'", "")
-                    
-                    if tg_id:
-                        link = f"https://t.me/nft/{clean_name}-{tg_id}"
-                    else:
-                        link = f"https://t.me/nft/{clean_name}"
-                    
-                    if link in seen_links: continue
-                    seen_links.add(link)
-                    
-                    img_url = getattr(gift, 'photo_url', '') or ""
-                    color_name = getattr(gift, 'backdrop', '')
-                    bg_color = COLOR_MAP.get(color_name, "#1c1c1e")
-                    
-                    result.append({
-                        "name": name,
-                        "price": price,
-                        "link": link,
-                        "image_url": img_url,
-                        "bg_color": bg_color
-                    })
-                
-                # 🔴 این مکث یک ثانیه‌ای باعث میشه سرور پورتالز ما رو بلاک نکنه
-                await asyncio.sleep(1.0) 
-                
-            except Exception as e:
-                print(f"Error at offset {offset}: {e}")
-                # اگه یه بخشی خطا داد، فقط از حلقه بیا بیرون ولی کل سرور رو کرش نکن
-                break 
+        # دریافت فقط یک صفحه (مثلا 50 تا) بر اساس آفست درخواستی
+        listings = await aportalsmp.search(
+            authData=PORTALS_TOKEN,
+            gift_name="",
+            limit=limit, 
+            offset=offset,
+            sort="price_asc"
+        )
         
+        for gift in listings:
+            name = getattr(gift, 'name', 'Unknown')
+            price = getattr(gift, 'price', 0)
+            tg_id = getattr(gift, 'tg_id', '')
+            clean_name = name.replace(" ", "").replace("'", "")
+            
+            link = f"https://t.me/nft/{clean_name}-{tg_id}" if tg_id else f"https://t.me/nft/{clean_name}"
+            
+            if link in seen_links: continue
+            seen_links.add(link)
+            
+            img_url = getattr(gift, 'photo_url', '') or ""
+            color_name = getattr(gift, 'backdrop', '')
+            bg_color = COLOR_MAP.get(color_name, "#1c1c1e")
+            
+            result.append({
+                "name": name,
+                "price": price,
+                "link": link,
+                "image_url": img_url,
+                "bg_color": bg_color
+            })
+            
         return {"status": "success", "data": result}
         
     except Exception as e:
