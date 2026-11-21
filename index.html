@@ -247,9 +247,7 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
       <div class="mc-arrow">›</div>
     </div>
     <div class="mc-subtitle">Telegram gifts marketplace</div>
-    <div class="mc-scroll"><div class="mc-track" id="home-gifts-track">
-      <!-- این بخش توسط جاوااسکریپت پر میشود -->
-    </div></div>
+    <div class="mc-scroll"><div class="mc-track" id="home-gifts-track"></div></div>
   </div>
 
   <div class="market-card card-premium" onclick="openMarketMenu('premium')">
@@ -274,9 +272,7 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
       <div class="mc-arrow">›</div>
     </div>
     <div class="mc-subtitle">Buy Telegram Stars</div>
-    <div class="mc-scroll"><div class="mc-track" id="home-stars-track">
-      <!-- این بخش توسط جاوااسکریپت پر میشود -->
-    </div></div>
+    <div class="mc-scroll"><div class="mc-track" id="home-stars-track"></div></div>
   </div>
 </div>
 
@@ -297,7 +293,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
       <p>from their deposits</p>
     </div>
   </div>
-
   <div style="background:#1c1c24; border-radius:14px; padding:16px; margin-bottom:16px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #2c2c2e; padding-bottom:10px;">
       <div style="font-size:14px; color:#8e8e93;">Your ID</div>
@@ -312,7 +307,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
       <div style="font-weight:800; font-size:18px; color:#22c55e;" id="my-invite-count">0</div>
     </div>
   </div>
-
   <button class="btn-primary" onclick="shareInviteLink()">Invite Friends</button>
   <button class="btn-secondary" onclick="copyInviteLink()">Copy Link</button>
   <div style="text-align:center;font-size:11px;color:#52525b;margin-top:12px" id="my-link-display">Generating link...</div>
@@ -349,7 +343,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
     </div>
     <div class="username-status" id="username-status">Enter the Telegram username</div>
   </div>
-
   <div class="premium-section">
     <div class="premium-section-title">Choose duration</div>
     <div class="premium-duration">
@@ -376,12 +369,10 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
       </div>
     </div>
   </div>
-
   <div class="premium-section">
     <div class="premium-section-title">Payment Method</div>
     <div class="premium-payment"><div class="payment-option selected"><span class="payment-symbol"><svg class="ton-logo" viewBox="0 0 48 48"><use href="#ton-mark"/></svg></span>TON · Tonkeeper</div></div>
   </div>
-
   <button class="premium-buy-btn" id="premium-buy-btn" onclick="buyPremium()">Buy Premium</button>
   <button class="premium-history-link" onclick="togglePremiumHistory()">View Transactions History</button>
   <div class="premium-history" id="premium-history"><div class="premium-history-empty">No transactions yet</div></div>
