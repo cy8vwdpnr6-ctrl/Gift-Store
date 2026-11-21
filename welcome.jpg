@@ -1,0 +1,24 @@
+// کد بک‌اند برای ارسال پیام خوش‌آمدگویی
+async function sendWelcome(chatId) {
+    const botToken = '8771799457:AAFtq13l9xHqkI5xHyV_03y350xJ-r5OrgI'; // توکن رباتت
+    // آدرس عکسی که آپلود کردی (باید دقیقا همین مسیر باشه)
+    const photoUrl = 'https://cy8vwdpnr6-ctrl.github.io/Gift-Store/welcome.jpg'; 
+    
+    // متن انگلیسی که خواستی
+    const welcomeText = 'Welcome to our bot! 👋\n\nClick on **Nft Store** in the bottom left corner to start buying and selling.';
+
+    const url = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            photo: photoUrl,
+            caption: welcomeText,
+            parse_mode: 'Markdown' // برای بولد شدن Nft Store
+        })
+    });
+
+    return response.json();
+}
