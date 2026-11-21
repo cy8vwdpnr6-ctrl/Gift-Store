@@ -147,7 +147,7 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 .gifts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .gift-card { background: #1c1c1e; border-radius: 22px; padding: 12px; display: flex; flex-direction: column; position: relative; cursor: pointer; transition: transform 0.2s ease, background 0.2s; border: 1px solid rgba(255,255,255,0.03); }
 .gift-card:active { transform: scale(0.96); background: #242426; }
-.gift-image-wrapper { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden; background: #2c2c2e; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; }
+.gift-image-wrapper { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden; background: transparent; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; }
 .gift-image-wrapper::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(255,255,255,0.15) 0%, transparent 70%); pointer-events: none; }
 .gift-image-wrapper img { width: 80%; height: 80%; object-fit: contain; z-index: 1; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.5)); }
 .gift-card-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -171,17 +171,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 .modal-gift-preview img { width: 100%; height: 100%; object-fit: contain; }
 .modal-title { font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 4px; background: linear-gradient(135deg, #fff, #b0b0b0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .modal-stock { font-size: 13px; color: #ff9f43; text-align: center; margin-bottom: 20px; font-weight: 600; }
-.modal-input-group { background: #272e38; border-radius: 16px; padding: 4px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border: 1px solid rgba(255, 255, 255, 0.05); transition: border-color 0.2s; }
-.modal-input-group:focus-within { border-color: #8b5cf6; }
-.modal-input-group input { background: transparent; border: none; outline: none; color: #fff; font-size: 16px; font-weight: 600; width: 100%; padding: 12px 0; direction: ltr; }
-.modal-input-group input::placeholder { color: #52525b; }
-.modal-input-group .prefix { color: #8b5cf6; font-size: 18px; font-weight: 800; }
-.quantity-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.quantity-label { font-size: 15px; color: #a1a1aa; font-weight: 600; }
-.quantity-selector { display: flex; align-items: center; background: #272e38; border-radius: 14px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05); }
-.quantity-selector button { background: transparent; border: none; color: #fff; width: 44px; height: 44px; font-size: 22px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; }
-.quantity-selector button:active { background: rgba(255, 255, 255, 0.05); }
-.quantity-selector span { min-width: 40px; text-align: center; font-size: 17px; font-weight: 700; }
 .modal-total-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 16px; }
 .modal-total-label { font-size: 15px; color: #a1a1aa; font-weight: 500; }
 .modal-total-price { font-size: 22px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 6px; }
@@ -409,19 +398,12 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
       <div class="modal-gift-preview" id="modal-gift-preview"></div>
     </div>
     <h2 class="modal-title" id="modal-gift-name">Gift Name</h2>
-    <div class="modal-stock" id="modal-gift-stock">Only 10 left</div>
-    <div class="modal-input-group">
-      <span class="prefix">@</span>
-      <input type="text" id="gift-recipient" placeholder="username" autocomplete="off" autocapitalize="off">
+    
+    <!-- 🔴 دکمه لینک تلگرام اینجا اضافه شد -->
+    <div style="text-align: center; margin-bottom: 20px;">
+        <a id="modal-gift-link" href="#" target="_blank" style="color: #60aaf5; font-size: 14px; text-decoration: none; font-weight: 600;">↗ View in Telegram</a>
     </div>
-    <div class="quantity-row">
-      <span class="quantity-label">Quantity</span>
-      <div class="quantity-selector">
-        <button onclick="changeQuantity(-1)">-</button>
-        <span id="gift-quantity">1</span>
-        <button onclick="changeQuantity(1)">+</button>
-      </div>
-    </div>
+
     <div class="modal-total-row">
       <span class="modal-total-label">Total Price</span>
       <span class="modal-total-price" id="modal-total-price">
@@ -887,15 +869,16 @@ async function renderGifts(filter = 'all') {
       }
 
       liveGifts = data.data.map(gift => {
-        // استفاده از عکس بک‌اند، اگر نبود آواتار حروف
-        const imgUrl = gift.image_url || `https://ui-avatars.com/api/?name=${gift.name || 'Gift'}&background=2c2c2e&color=fff`;
+        const imgUrl = gift.image_url || `https://ui-avatars.com/api/?name=${gift.name || 'Gift'}&background=transparent&color=fff`;
 
         return {
           id: gift.name, 
           name: gift.name || 'Gift',
-          serial: gift.serial || '', // 🔴 دیگه کوتاه نمی‌کنیم، دقیقاً همون سریال واقعی
+          serial: gift.serial || '', 
           price: gift.price,
           image: imgUrl, 
+          link: gift.link || '',
+          bg_color: gift.bg_color || 'transparent', // 🔴 رنگ رو می‌گیریم
           popularity: Math.random() * 100,
           stock: 100
         };
@@ -913,8 +896,9 @@ async function renderGifts(filter = 'all') {
 
   grid.innerHTML = filtered.map(gift => `
     <div class="gift-card" onclick="openGiftModal('${gift.id}')">
-      <div class="gift-image-wrapper">
-        <img src="${gift.image}" alt="${gift.name}" loading="lazy" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=2c2c2e&color=fff'">
+      <!-- 🔴 اینجا رنگ بک‌گراند رو به باکس عکس میدیم -->
+      <div class="gift-image-wrapper" style="background: ${gift.bg_color};">
+        <img src="${gift.image}" alt="${gift.name}" loading="lazy" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=transparent&color=fff'">
       </div>
       <div class="gift-card-title">${gift.name}</div>
       <div class="gift-card-serial">${gift.serial}</div>
@@ -955,16 +939,25 @@ function openGiftModal(giftId) {
   selectedGift = liveGifts.find(g => g.id == giftId);
   if (!selectedGift) return;
   
-  giftQuantity = 1;
+  // 🔴 تعداد همیشه یدونه است
+  giftQuantity = 1; 
   
-  document.getElementById('modal-gift-preview').innerHTML = `<img src="${selectedGift.image}" alt="${selectedGift.name}" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=2c2c2e&color=fff'">`;
+  // 🔴 دادن رنگ به مودال
+  document.getElementById('modal-gift-preview').style.background = selectedGift.bg_color;
+  document.getElementById('modal-gift-preview').innerHTML = `<img src="${selectedGift.image}" alt="${selectedGift.name}" onerror="this.src='https://ui-avatars.com/api/?name=Gift&background=transparent&color=fff'">`;
+  
   document.getElementById('modal-gift-name').textContent = selectedGift.name;
-  document.getElementById('modal-gift-stock').textContent = `Serial: ${selectedGift.serial} | Stock: ${selectedGift.stock}`;
   
-  document.getElementById('gift-recipient').value = '';
-  document.getElementById('gift-quantity').textContent = '1';
+  // 🔴 تنظیم لینک تلگرام
+  const linkEl = document.getElementById('modal-gift-link');
+  if (selectedGift.link) {
+      linkEl.href = selectedGift.link;
+      linkEl.style.display = 'inline-block';
+  } else {
+      linkEl.style.display = 'none';
+  }
+
   updateGiftModalTotal();
-  
   document.getElementById('gift-modal').classList.add('active');
 }
 
@@ -972,12 +965,6 @@ function closeGiftModal(event) {
   if (event && event.target !== event.currentTarget) return;
   document.getElementById('gift-modal').classList.remove('active');
   selectedGift = null;
-}
-
-function changeQuantity(delta) {
-  giftQuantity = Math.max(1, giftQuantity + delta);
-  document.getElementById('gift-quantity').textContent = giftQuantity;
-  updateGiftModalTotal();
 }
 
 function updateGiftModalTotal() {
@@ -992,18 +979,7 @@ function updateGiftModalTotal() {
 async function buyGift() {
   if (!selectedGift) return;
   
-  const recipientInput = document.getElementById('gift-recipient').value.trim().replace(/^@+/, '');
-  if (!recipientInput) {
-    alert('Please enter the recipient\'s Telegram username.');
-    return;
-  }
-  
-  if (!/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(recipientInput)) {
-    alert('Invalid Telegram username format.');
-    return;
-  }
-  
-  const totalPrice = (selectedGift.price * giftQuantity).toFixed(2);
+  const totalPrice = selectedGift.price.toFixed(2);
   let amountNano;
   
   try {
@@ -1029,9 +1005,7 @@ async function buyGift() {
     
     await ui.sendTransaction(transaction);
     
-    const orderId = 'GIFT-' + Date.now().toString(36).toUpperCase();
-    
-    alert(`✅ Payment submitted!\n\nGift: ${selectedGift.name} (x${giftQuantity})\nRecipient: @${recipientInput}\nTotal: ${totalPrice} TON\n\nYour order is pending verification.`);
+    alert(`✅ Payment submitted!\n\nGift: ${selectedGift.name}\nTotal: ${totalPrice} TON\n\nYour order is pending verification.`);
     closeGiftModal();
   } catch (e) {
     if (e.message === 'Wallet connection cancelled') {
