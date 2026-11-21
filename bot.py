@@ -14,12 +14,10 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 gifts_lib = TelegramGifts()
 
-# --- بخش ربات ---
 @dp.message(Command("gifts"))
 async def show_gifts(message: types.Message):
     await message.answer("این دستور از مینی‌اپ استفاده کن!")
 
-# --- بخش API برای مینی‌اپ ---
 app = FastAPI()
 
 app.add_middleware(
@@ -32,34 +30,47 @@ app.add_middleware(
 @app.get("/api/gifts")
 async def get_gifts_api():
     try:
-        # لیست تمام گیفت‌های معمولی رو می‌گیریم
+        # لیست تمام گیفت‌های معمولی را می‌گیریم تا اسم‌ها را داشته باشیم
         all_regular = gifts_lib.get_regular_gifts()
         
         result = []
+        seen_names = set() # برای جلوگیری از تکرار
+
         for gift in all_regular:
-            # جستجوی نسخه آپگرید شده (NFT) با استفاده از نام گیفت
-            upgraded = gifts_lib.get_gift(gift.full_name, gift_type="upgraded")
-            
-            if upgraded:
-                # استخراج قیمت از دیکشنری prices
-                prices = upgraded.get('prices', {})
-                price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
+            try:
+                # حالا نسخه آپگرید شده (NFT) همان گیفت را جستجو می‌کنیم
+                upgraded = gifts_lib.get_gift(gift.full_name, gift_type="upgraded")
                 
-                result.append({
-                    "name": upgraded.get('full_name', gift.full_name),
-                    "price": price,
-                    "image_url": "" 
-                })
+                if upgraded:
+                    # استخراج نام و قیمت از دیکشنری برگشتی
+                    name = upgraded.get('full_name', gift.full_name)
+                    
+                    # قیمت را از دیکشنری prices می‌خوانیم
+                    prices = upgraded.get('prices', {})
+                    price = prices.get('tgmrkt_price_ton', 0)
+                    
+                    if name not in seen_names:
+                        seen_names.add(name)
+                        result.append({
+                            "name": name,
+                            "price": price,
+                            "image_url": "" 
+                        })
+            except Exception:
+                # اگر برای یک گیفت خاص خطایی رخ داد، از آن رد شو
+                continue
             
-            # سقف ۶۰۰ تا برای اینکه سرور کند نشه
+            # سقف ۶۰۰ تا برای اینکه سرور کند نشود
             if len(result) >= 600:
                 break
                 
+        if not result:
+            return {"status": "error", "message": "No upgraded gifts found. The library might be returning an empty list."}
+            
         return {"status": "success", "data": result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# --- اجرای همزمان ربات و وب‌سرور ---
 async def main():
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
     server = uvicorn.Server(config)
