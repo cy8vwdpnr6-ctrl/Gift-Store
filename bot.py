@@ -19,13 +19,11 @@ gifts_lib = TelegramGifts()
 # --- بخش اول: کد ربات تلگرام ---
 @dp.message(Command("gifts"))
 async def show_gifts(message: types.Message):
-    # ... (همون کد قبلی که برای ربات نوشتیم، می‌تونی نگهش داری یا حذفش کنی)
     await message.answer("این دستور از مینی‌اپ استفاده کن!")
 
 # --- بخش دوم: وب‌سرور (API) برای مینی‌اپ ---
 app = FastAPI()
 
-# این تنظیمات اجازه می‌ده مینی‌اپت از هر دامنه‌ای به این سرور وصل بشه
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,21 +34,26 @@ app.add_middleware(
 @app.get("/api/gifts")
 async def get_gifts_api():
     try:
-        all_gifts = gifts_lib.get_regular_gifts()
+        # 🔴 اینجا تغییر مهم است: استفاده از لیست کالکتیبل‌ها به جای معمولی‌ها
+        # این متد معمولاً لیست مدل‌های آپگرید شده (NFT) را برمی‌گرداند
+        all_gifts = gifts_lib.get_upgraded_gifts() 
+        
+        # اگر کتابخانه متد بالا را نداشت، از این استفاده کن:
+        # all_gifts = gifts_lib.get_regular_gifts() 
+        
         target_gifts = all_gifts[:600]
         
         result = []
         for gift in target_gifts:
-            # اسم فایل عکس رو می‌سازیم
-            file_name = gift.full_name.lower().replace(" ", "_")
-            # لینک عکس رو می‌سازیم (چون مینی‌اپ نمی‌تونه فایل لوکال رو لود کنه، از یه سرویس CDN تلگرام یا Fragment استفاده می‌کنیم)
-            # *نکته: اینجا باید لینک مستقیم عکس رو پیدا کنیم*
+            # برای گیفت‌های کالکتیبل، قیمت معمولاً به TON است
+            # اگر فیلد قیمت متفاوت بود، با توجه به داکیومنت کتابخانه اصلاحش کن
+            price = getattr(gift, 'floor_price', 0)
             
             result.append({
                 "name": gift.full_name,
-                "price": gift.floor_price,
-                # این خط رو بعداً باید با لینک واقعی عکس جایگزین کنیم
-                "image_url": f"https://example.com/{file_name}.webp" 
+                "price": price,
+                # لینک عکس رو فعلاً خالی می‌ذاریم تا فرانت‌اند از آواتار استفاده کنه
+                "image_url": "" 
             })
             
         return {"status": "success", "data": result}
@@ -59,11 +62,9 @@ async def get_gifts_api():
 
 # --- بخش سوم: اجرای همزمان ربات و وب‌سرور ---
 async def main():
-    # اجرای وب‌سرور در پس‌زمینه
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
     server = uvicorn.Server(config)
     
-    # ربات و سرور رو با هم اجرا می‌کنیم
     await asyncio.gather(
         server.serve(),
         dp.start_polling(bot)
