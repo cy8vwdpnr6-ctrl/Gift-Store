@@ -30,6 +30,7 @@ async def get_gifts_api():
 
         for gift in regular_gifts:
             try:
+                # گرفتن اطلاعات کامل گیفت (شامل مدل آپگرید شده)
                 info = gifts_lib.get_gift(gift.full_name, gift_type="upgraded")
                 
                 if info:
@@ -37,28 +38,53 @@ async def get_gifts_api():
                     if name not in seen:
                         seen.add(name)
                         
+                        # 1. استخراج قیمت
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        slug = info.get('slug', '')
-                        gift_link = f"https://t.me/nft/{slug}" if slug else ""
+                        # 2. استخراج لینک تلگرام
+                        # کتابخانه معمولاً لینک رو در فیلد name یا slug یا id ذخیره میکنه
+                        slug = info.get('slug', '') or info.get('name', '')
+                        # اگر slug خالی بود، از اسم گیفت برای لینک استفاده میکنیم
+                        if not slug:
+                            slug = gift.full_name
+                        gift_link = f"https://t.me/nft/{slug}"
                         
-                        img_url = info.get('links', {}).get('webp', '')
+                        # 3. استخراج عکس (اولویت با وب‌پی یا عکس اصلی)
+                        links = info.get('links', {})
+                        img_url = links.get('webp', '') or links.get('png', '') or links.get('jpg', '')
                         
-                        # 🔴 استخراج رنگ پس‌زمینه
-                        # تلگرام معمولاً اینو به صورت هگز (مثل #ff0000) میده
-                        bg_color = info.get('background_color', '') or info.get('bg_color', '')
+                        # 4. استخراج رنگ پس‌زمینه
+                        # تلگرام رنگ رو معمولاً در فیلد background_color یا background ذخیره میکنه
+                        bg_color = info.get('background_color', '') or info.get('background', '')
                         
+                        # اگر رنگ به صورت "center" یا "none" بود، خالی می‌کنیم تا فرانت‌اند رنگ پیش‌فرض خودش رو بذاره
+                        if bg_color in ['center', 'none', 'transparent', '']:
+                            bg_color = ''
+                        elif not bg_color.startswith('#') and bg_color:
+                            # اگر کد رنگ بدون # بود، اضافه میکنیم
+                            bg_color = f"#{bg_color}"
+                        
+                        # 🔴 پرینت برای دیباگ (در بخش Logs در Railway اینها رو می‌بینی)
+                        print(f"--- DEBUG: {name} ---")
+                        print(f"Link: {gift_link}")
+                        print(f"BgColor: {bg_color}")
+                        print(f"Image: {img_url}")
+                        print(f"-----------------------")
+
                         result.append({
                             "name": name,
                             "price": price,
                             "link": gift_link,
                             "image_url": img_url,
-                            "bg_color": bg_color # ارسال رنگ به فرانت‌اند
+                            "bg_color": bg_color 
                         })
-            except Exception:
+            except Exception as e:
+                # در صورت خطا در یک گیفت، بقیه ادامه پیدا کنند
+                print(f"Error processing gift {gift.full_name}: {e}")
                 continue
             
+            # محدودیت 600 تایی برای جلوگیری از کرش کردن سرور
             if len(result) >= 600:
                 break
 
