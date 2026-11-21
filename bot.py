@@ -37,46 +37,44 @@ async def get_gifts_api():
                     if name not in seen:
                         seen.add(name)
                         
-                        # قیمت
+                        # 1. قیمت
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        # 🔴 ساخت لینک واقعی تلگرام
-                        # اسم رو تمیز میکنیم (حذف فاصله و آپاستروف) و شماره سریال رو اضافه میکنیم
-                        clean_name = name.replace(" ", "").replace("'", "").replace("-", "")
-                        serial = info.get('number', '') or info.get('serial', '')
+                        # 2. لینک واقعی از slug
+                        # طبق مستندات تلگرام، slug برای ساخت لینک استفاده میشه
+                        slug = info.get('slug', '')
+                        if not slug:
+                            # اگر slug نبود، از name استفاده میکنیم
+                            slug = info.get('name', '').replace(" ", "").replace("'", "")
                         
-                        if serial:
-                            gift_link = f"https://t.me/nft/{clean_name}-{serial}"
-                        else:
-                            # اگر شماره سریال نبود، لینک ساخته نمیشه
-                            gift_link = ""
+                        gift_link = f"https://t.me/nft/{slug}" if slug else ""
                         
-                        # عکس
+                        # 3. عکس
                         links = info.get('links', {})
                         img_url = links.get('webp', '') or links.get('png', '') or links.get('jpg', '')
                         
-                        # بک‌گراند
+                        # 4. بک‌گراند واقعی از backdrop
+                        # تلگرام رنگ‌ها رو در backdrop با center_color و edge_color میده
                         backdrop = info.get('backdrop', {})
                         bg_color = ""
                         
                         if isinstance(backdrop, dict):
-                            c_from = backdrop.get('gradient_from') or backdrop.get('center_color')
-                            c_to = backdrop.get('gradient_to') or backdrop.get('edge_color')
+                            c_from = backdrop.get('center_color') or backdrop.get('gradient_from')
+                            c_to = backdrop.get('edge_color') or backdrop.get('gradient_to')
                             
                             if c_from:
+                                # تبدیل عدد RGB به هگز
                                 if isinstance(c_from, int):
                                     bg_color = f"#{c_from:06x}"
-                                elif isinstance(c_from, str) and not c_from.startswith('#'):
-                                    bg_color = f"#{c_from}"
                                 elif isinstance(c_from, str):
-                                    bg_color = c_from
+                                    bg_color = c_from if c_from.startswith('#') else f"#{c_from}"
                                     
                                 if c_to:
                                     if isinstance(c_to, int):
                                         c_to_hex = f"#{c_to:06x}"
-                                    elif isinstance(c_to, str) and not c_to.startswith('#'):
-                                        c_to_hex = f"#{c_to}"
+                                    elif isinstance(c_to, str):
+                                        c_to_hex = c_to if c_to.startswith('#') else f"#{c_to}"
                                     else:
                                         c_to_hex = c_to
                                     bg_color = f"linear-gradient(135deg, {bg_color}, {c_to_hex})"
