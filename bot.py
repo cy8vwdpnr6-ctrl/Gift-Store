@@ -14,7 +14,7 @@ COLOR_MAP = {
     "Pine Green": "#017561", "Mystic Pearl": "#E6E0D4", "Silver Blue": "#8A9A9D",
     "French Blue": "#0072BB", "Ranger Green": "#444C38", "Pacific Cyan": "#1CA9C9",
     "Seal Brown": "#59260B", "French Violet": "#8806CE", "Onyx Black": "#0F0F0F",
-    "Crimson Red": "#990000", "Gold": "#FFD700", "Vice Cream": "#F5F5DC" # اضافه کردن رنگ‌های بیشتر
+    "Crimson Red": "#990000", "Gold": "#FFD700", "Vice Cream": "#F5F5DC"
 }
 
 @app.get("/api/gifts")
@@ -22,34 +22,52 @@ async def get_gifts_api():
     try:
         import aportalsmp
         
-        # 🔴 لیمیت رو کردم 700 تا
-        listings = await aportalsmp.search(
-            authData=PORTALS_TOKEN,
-            gift_name="",
-            limit=700, 
-            sort="price_asc"
-        )
+        all_gifts = []
+        # 🔴 حلقه برای گرفتن 700 تا گیفت (14 بار 50 تا)
+        for offset in range(0, 700, 50):
+            try:
+                listings = await aportalsmp.search(
+                    authData=PORTALS_TOKEN,
+                    gift_name="",
+                    limit=50, 
+                    offset=offset, # پارامتر offset برای صفحه‌بندی
+                    sort="price_asc"
+                )
+                
+                if not listings:
+                    break # اگه لیست خالی بود، یعنی دیگه گیفتی نیست
+                    
+                all_gifts.extend(listings)
+                
+            except Exception as e:
+                print(f"Error at offset {offset}: {e}")
+                break # اگه خطا داد، از حلقه بیا بیرون
         
         result = []
-        for gift in listings:
+        seen_links = set() # برای جلوگیری از تکراری شدن
+        
+        for gift in all_gifts:
             name = getattr(gift, 'name', 'Unknown')
             price = getattr(gift, 'price', 0)
             
-            # 🔴 تمام تلاش برای ساختن لینک
             tg_id = getattr(gift, 'tg_id', '')
             clean_name = name.replace(" ", "").replace("'", "")
             
             if tg_id:
                 link = f"https://t.me/nft/{clean_name}-{tg_id}"
             else:
-                # اگه شماره سریال نبود، حداقل با اسم لینک می‌سازیم
                 link = f"https://t.me/nft/{clean_name}"
             
-            # 🔴 عکس الکی نمیذاره. اگه نبود، خالی می‌مونه.
+            # جلوگیری از تکراری ها
+            if link in seen_links:
+                continue
+            seen_links.add(link)
+            
+            # عکس بدون تقلب
             img_url = getattr(gift, 'photo_url', '') or ""
 
             color_name = getattr(gift, 'backdrop', '')
-            bg_color = COLOR_MAP.get(color_name, "#1c1c1e") # رنگ پیش‌فرض اگه پیدا نشد
+            bg_color = COLOR_MAP.get(color_name, "#1c1c1e")
             
             result.append({
                 "name": name,
