@@ -865,7 +865,6 @@ async function buyStars() {
 /* =========================================================
    GIFTS MARKETPLACE LOGIC (Connected to Railway)
    ========================================================= */
-// 🔴 اینجا آدرس دامنه خودت توی Railway رو گذاشتم
 const RAILWAY_URL = 'https://gift-store-production.up.railway.app/api/gifts';
 
 let currentGiftFilter = 'all';
@@ -888,13 +887,13 @@ async function renderGifts(filter = 'all') {
       }
 
       liveGifts = data.data.map(gift => {
-        // چون کتابخانه لینک عکس نداره، از آواتار استفاده می‌کنیم
-        const imgUrl = `https://ui-avatars.com/api/?name=${gift.name || 'Gift'}&background=2c2c2e&color=fff`;
+        // اگر عکس از بک‌اند اومد استفاده کن، وگرنه آواتار حروف
+        const imgUrl = gift.image_url || `https://ui-avatars.com/api/?name=${gift.name || 'Gift'}&background=2c2c2e&color=fff`;
 
         return {
-          id: gift.name, // از اسم به عنوان آی‌دی استفاده می‌کنیم
+          id: gift.name, 
           name: gift.name || 'Gift',
-          serial: `#${Math.floor(Math.random()*1000)}`, // یه سریال رندوم
+          serial: gift.serial || '#000', // استفاده از سریال واقعی
           price: gift.price,
           image: imgUrl, 
           popularity: Math.random() * 100,
