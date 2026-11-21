@@ -849,50 +849,72 @@ async function buyStars() {
 
 /* =========================================================
    GIFTS MARKETPLACE LOGIC (Connected to Railway)
-   Progressive Loading + Infinite Scroll (بدون آسیب به بقیه کد)
+   Pagination واقعی از بک‌اند + Infinite Scroll (۵۰ تا ۵۰ تا)
    ========================================================= */
 const RAILWAY_URL = 'https://gift-store-production.up.railway.app/api/gifts';
 
 let currentGiftFilter = 'all';
 let selectedGift = null;
 let giftQuantity = 1;
-let liveGifts = [];
+let liveGifts = [];                 // همه گیفت‌هایی که تا حالا لود شدن
 let filteredGifts = [];
 let displayedCount = 0;
-const BATCH_SIZE = 24;          // هر بار فقط ۲۴ گیفت رندر می‌شود (سریع و سبک)
+const BATCH_SIZE = 50;              // هر درخواست ۵۰ تا از سرور
+let currentOffset = 0;              // آفست فعلی برای API
 let isLoadingMore = false;
+let hasMoreGifts = true;            // آیا هنوز صفحه بعدی وجود داره؟
 let giftsObserver = null;
 
-async function fetchGiftsIfNeeded() {
-  if (liveGifts.length > 0) return true;
+async function fetchNextPageFromServer() {
+  if (isLoadingMore || !hasMoreGifts) return false;
   
-  const grid = document.getElementById('gifts-grid');
-  grid.innerHTML = '<div style="text-align:center; padding: 40px 20px; color: #888; grid-column: 1/-1;">Loading gifts from Telegram...</div>';
+  isLoadingMore = true;
   
   try {
-    const response = await fetch(RAILWAY_URL);
+    const url = `${RAILWAY_URL}?offset=${currentOffset}&limit=${BATCH_SIZE}`;
+    console.log('Fetching gifts:', url);
+    
+    const response = await fetch(url);
     const data = await response.json();
     
-    if (data.status !== "success" || !data.data) {
-      throw new Error('Failed to load gifts');
+    if (data.status !== "success" || !Array.isArray(data.data)) {
+      throw new Error(data.message || 'Failed to load gifts');
     }
 
-    liveGifts = data.data.map(gift => {
-      return {
-        id: gift.name, 
-        name: gift.name || 'Gift',
-        price: gift.price,
-        image: gift.image_url, 
-        link: gift.link || '',
-        bg_color: gift.bg_color || 'transparent', 
-        popularity: Math.random() * 100,
-        stock: 100
-      };
-    });
+    const newGifts = data.data.map(gift => ({
+      id: gift.name + (gift.link || Math.random()),  // unique id
+      name: gift.name || 'Gift',
+      price: gift.price,
+      image: gift.image_url || '',
+      link: gift.link || '',
+      bg_color: gift.bg_color || '#1c1c1e',
+      popularity: Math.random() * 100,
+      stock: 100
+    }));
+
+    if (newGifts.length === 0) {
+      hasMoreGifts = false;
+      isLoadingMore = false;
+      return false;
+    }
+
+    // اضافه کردن به لیست کلی (جلوگیری از تکراری)
+    const existingLinks = new Set(liveGifts.map(g => g.link));
+    const uniqueNew = newGifts.filter(g => !existingLinks.has(g.link));
+    
+    liveGifts = liveGifts.concat(uniqueNew);
+    currentOffset += BATCH_SIZE;
+
+    // اگر کمتر از limit برگشت، یعنی دیگه صفحه بعدی نیست
+    if (newGifts.length < BATCH_SIZE) {
+      hasMoreGifts = false;
+    }
+
+    isLoadingMore = false;
     return true;
   } catch (e) {
-    console.error('Error fetching gifts:', e);
-    grid.innerHTML = '<div style="text-align:center; padding: 20px; color: #ff6b6b; grid-column: 1/-1;">Failed to load gifts. Check console.</div>';
+    console.error('Error fetching gifts page:', e);
+    isLoadingMore = false;
     return false;
   }
 }
@@ -916,8 +938,9 @@ function createGiftCardHTML(gift) {
       <div class="gift-image-wrapper" style="background: ${gift.bg_color || '#1c1c1e'};">
         <img src="${gift.image}" alt="${gift.name}" 
              loading="lazy" 
-             decoding="async" 
-             onerror="this.style.opacity='0.3'; setTimeout(() => { this.src = this.src; this.style.opacity='1'; }, 3000);">
+             decoding="async"
+             data-retry="0"
+             onerror="retryGiftImage(this)">
       </div>
       
       <div class="gift-card-title">${gift.name}</div>
@@ -938,35 +961,55 @@ function createGiftCardHTML(gift) {
   `;
 }
 
-function appendNextBatch() {
-  if (isLoadingMore || displayedCount >= filteredGifts.length) return;
+function retryGiftImage(img) {
+  let retry = parseInt(img.dataset.retry || '0');
+  if (retry >= 4) {
+    // بعد از ۴ بار تلاش، دیگه امتحان نکن (بدون عکس فیک)
+    img.style.opacity = '0.25';
+    img.style.filter = 'grayscale(1)';
+    return;
+  }
+  img.dataset.retry = retry + 1;
+  img.style.opacity = '0.45';
   
-  isLoadingMore = true;
+  const delay = 1200 + (retry * 1000);
+  setTimeout(() => {
+    try {
+      const base = img.src.split('?')[0];
+      img.src = base + (base.includes('?') ? '&' : '?') + 't=' + Date.now();
+      img.style.opacity = '1';
+      img.style.filter = 'none';
+    } catch(e) {}
+  }, delay);
+}
+
+function appendNextBatch() {
+  if (isLoadingMore) return;
   
   // حذف لودر قبلی
   const oldLoader = document.getElementById('gifts-loader');
   if (oldLoader) oldLoader.remove();
   
   const grid = document.getElementById('gifts-grid');
-  const nextBatch = filteredGifts.slice(displayedCount, displayedCount + BATCH_SIZE);
   
-  const html = nextBatch.map(createGiftCardHTML).join('');
-  grid.insertAdjacentHTML('beforeend', html);
-  
-  displayedCount += nextBatch.length;
-  
-  // اگر هنوز گیفت باقی مانده، لودر بگذار
+  // اگر هنوز گیفت‌های لود‌شده تموم نشدن، از همونا نشون بده
   if (displayedCount < filteredGifts.length) {
+    const nextBatch = filteredGifts.slice(displayedCount, displayedCount + BATCH_SIZE);
+    const html = nextBatch.map(createGiftCardHTML).join('');
+    grid.insertAdjacentHTML('beforeend', html);
+    displayedCount += nextBatch.length;
+  }
+  
+  // اگر هنوز صفحه بعدی از سرور ممکنه، لودر بذار
+  if (hasMoreGifts || displayedCount < filteredGifts.length) {
     grid.insertAdjacentHTML('beforeend', `
       <div id="gifts-loader" style="grid-column: 1 / -1; text-align: center; padding: 28px 20px; color: #888;">
         <div style="display:inline-block;width:26px;height:26px;border:3px solid #333;border-top-color:#8b5cf6;border-radius:50%;animation:spin 0.75s linear infinite;"></div>
         <div style="margin-top:10px;font-size:13px;">Loading more gifts...</div>
       </div>
     `);
+    setupGiftsObserver();
   }
-  
-  isLoadingMore = false;
-  setupGiftsObserver();
 }
 
 function setupGiftsObserver() {
@@ -978,28 +1021,36 @@ function setupGiftsObserver() {
   const loader = document.getElementById('gifts-loader');
   if (!loader) return;
   
-  giftsObserver = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && !isLoadingMore && displayedCount < filteredGifts.length) {
+  giftsObserver = new IntersectionObserver(async (entries) => {
+    if (entries[0].isIntersecting && !isLoadingMore) {
+      // اول سعی کن صفحه بعدی رو از سرور بگیری
+      if (hasMoreGifts) {
+        const gotNew = await fetchNextPageFromServer();
+        if (gotNew) {
+          applyGiftFilter(currentGiftFilter);
+        }
+      }
+      // بعد هر چی لود شده رو نشون بده
       appendNextBatch();
     }
   }, { 
     root: null, 
-    rootMargin: '300px',  // کمی زودتر لود کن تا حس روان بودن بده
-    threshold: 0.1 
+    rootMargin: '400px',
+    threshold: 0.01 
   });
   
   giftsObserver.observe(loader);
 }
 
 async function renderGifts(filter = 'all') {
-  const ok = await fetchGiftsIfNeeded();
-  if (!ok) return;
-  
-  applyGiftFilter(filter);
-  
   const grid = document.getElementById('gifts-grid');
-  grid.innerHTML = '';
+  
+  // ریست کامل
+  liveGifts = [];
+  filteredGifts = [];
   displayedCount = 0;
+  currentOffset = 0;
+  hasMoreGifts = true;
   isLoadingMore = false;
   
   if (giftsObserver) {
@@ -1007,19 +1058,32 @@ async function renderGifts(filter = 'all') {
     giftsObserver = null;
   }
   
-  if (filteredGifts.length === 0) {
-    grid.innerHTML = '<div style="text-align:center; padding: 40px; color: #888; grid-column: 1/-1;">No gifts found.</div>';
+  grid.innerHTML = '<div style="text-align:center; padding: 40px 20px; color: #888; grid-column: 1/-1;">Loading gifts...</div>';
+  
+  // اولین صفحه رو بگیر
+  const ok = await fetchNextPageFromServer();
+  
+  if (!ok || liveGifts.length === 0) {
+    grid.innerHTML = '<div style="text-align:center; padding: 40px; color: #ff6b6b; grid-column: 1/-1;">Failed to load gifts or no gifts found.</div>';
     return;
   }
   
-  // اولین بچ رو فوری نشان بده
+  applyGiftFilter(filter);
+  grid.innerHTML = '';
   appendNextBatch();
 }
 
 function filterGifts(type, btnElement) {
   document.querySelectorAll('#gifts-filters .filter-btn').forEach(btn => btn.classList.remove('active'));
   btnElement.classList.add('active');
-  renderGifts(type);
+  
+  // فقط فیلتر روی داده‌های لود‌شده فعلی اعمال می‌شه
+  applyGiftFilter(type);
+  
+  const grid = document.getElementById('gifts-grid');
+  grid.innerHTML = '';
+  displayedCount = 0;
+  appendNextBatch();
 }
 
 function renderHomeGifts() {
@@ -1044,7 +1108,7 @@ function openGiftModal(giftId) {
   giftQuantity = 1; 
   
   document.getElementById('modal-gift-preview').style.background = selectedGift.bg_color;
-  document.getElementById('modal-gift-preview').innerHTML = `<img src="${selectedGift.image}" alt="${selectedGift.name}">`;
+  document.getElementById('modal-gift-preview').innerHTML = `<img src="${selectedGift.image}" alt="${selectedGift.name}" onerror="retryGiftImage(this)">`;
   
   document.getElementById('modal-gift-name').textContent = selectedGift.name;
   
