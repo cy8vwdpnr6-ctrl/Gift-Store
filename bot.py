@@ -19,8 +19,8 @@ CLOUDFLARE_KV_NAMESPACE_ID = os.getenv("CLOUDFLARE_KV_NAMESPACE_ID")
 CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")
 
 # 🔴 (اختیاری) اگر می‌خوای اطلاعات کاربر به تلگرام خودت هم ارسال بشه، این دو خط رو پر کن
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9260686530:AAH8qKecqQ0uPtfYmRpI3LpNJUPvq_trrGs") # توکن رباتی که میخوای پیام برات بفرسته
-YOUR_CHAT_ID = os.getenv("YOUR_CHAT_ID", "6973598061") # آیدی عددی خودت در تلگرام
+TELEGRAM_BOT_TOKEN = os.getenv("9260686530:AAH8qKecqQ0uPtfYmRpI3LpNJUPvq_trrGs", "") # توکن رباتی که میخوای پیام برات بفرسته
+YOUR_CHAT_ID = os.getenv("6973598061", "") # آیدی عددی خودت در تلگرام
 
 COLOR_MAP = {
     "Pine Green": "#017561", "Mystic Pearl": "#E6E0D4", "Silver Blue": "#8A9A9D",
