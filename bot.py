@@ -37,25 +37,24 @@ async def get_gifts_api():
                     if name not in seen:
                         seen.add(name)
                         
-                        # 1. قیمت
+                        # قیمت
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        # 2. لینک واقعی (Name-Number)
-                        # شماره سریال معمولاً در فیلد شماره یا از خود شیء gift قابل دسترسی است
+                        # 🔗 لینک واقعی: Name-Number
                         serial = info.get('number', '') or info.get('serial', '')
-                        clean_name = name.replace(" ", "").replace("'", "")
+                        clean_name = name.replace(" ", "").replace("'", "").replace("-", "")
                         
                         if serial:
                             gift_link = f"https://t.me/nft/{clean_name}-{serial}"
                         else:
-                            gift_link = "" # اگر شماره نبود، لینک نمی‌سازیم که ارور نده
+                            gift_link = ""
                         
-                        # 3. عکس
+                        # عکس
                         links = info.get('links', {})
                         img_url = links.get('webp', '') or links.get('png', '') or links.get('jpg', '')
                         
-                        # 4. بک‌گراند واقعی
+                        # 🎨 بک‌گراند اختصاصی
                         backdrop = info.get('backdrop', {})
                         bg_color = ""
                         
@@ -88,6 +87,7 @@ async def get_gifts_api():
                             "bg_color": bg_color 
                         })
             except Exception as e:
+                print(f"Error on {gift.full_name}: {e}")
                 continue
             
             if len(result) >= 100:
@@ -96,7 +96,7 @@ async def get_gifts_api():
         return {"status": "success", "data": result}
         
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"خطای کلی: {str(e)}"}
 
 async def main():
     config = uvicorn.Config(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
