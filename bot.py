@@ -8,45 +8,41 @@ from TelegramGifts import TelegramGifts
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# این کتابخانه دیتای واقعی تلگرام رو داره
 gifts_lib = TelegramGifts(cache_mode="http", asset_mode="lazy")
+
+# لیست رنگ‌های شیک برای گیفت‌ها
+COLORS = [
+    "linear-gradient(135deg, #4c1d95, #7e22ce)", # بنفش
+    "linear-gradient(135deg, #0f172a, #1e293b)", # آبی تیره
+    "linear-gradient(135deg, #064e3b, #10b981)", # سبز
+    "linear-gradient(135deg, #7f1d1d, #ef4444)", # قرمز
+    "linear-gradient(135deg, #78350f, #f59e0b)", # نارنجی
+    "linear-gradient(135deg, #831843, #ec4899)", # صورتی
+]
 
 @app.get("/api/gifts")
 async def get_gifts_api():
     try:
         result = []
-        # گرفتن لیست پایه گیفت‌ها
         regular_gifts = gifts_lib.get_regular_gifts()
         
-        # ما فقط 50 تا اول رو برمی‌داریم که سریع باشه
-        for gift in regular_gifts[:50]:
+        for i, gift in enumerate(regular_gifts[:50]):
             try:
-                # گرفتن اطلاعات دقیق
                 info = gifts_lib.get_gift(gift.full_name, gift_type="upgraded")
                 
                 if info:
                     name = info.get('full_name', gift.full_name)
                     
-                    # 1. لینک از فیلد slug (دقیقا طبق مستندات تلگرام)
-                    slug = info.get('slug', '')
-                    link = f"https://t.me/nft/{slug}" if slug else ""
+                    # 🔴 1. ساخت لینک با اسم گیفت (چون slug نداریم)
+                    clean_name = name.replace(" ", "").replace("'", "").replace("-", "")
+                    link = f"https://t.me/nft/{clean_name}"
                     
                     # 2. عکس
                     links = info.get('links', {})
                     img_url = links.get('webp', '') or links.get('png', '')
                     
-                    # 3. رنگ بک‌گراند از فیلد backdrop
-                    backdrop = info.get('backdrop', {})
-                    bg_color = ""
-                    if isinstance(backdrop, dict):
-                        c_from = backdrop.get('center_color') or backdrop.get('gradient_from')
-                        c_to = backdrop.get('edge_color') or backdrop.get('gradient_to')
-                        
-                        if c_from:
-                            bg_color = f"#{c_from:06x}" if isinstance(c_from, int) else c_from
-                            if c_to:
-                                c_to_hex = f"#{c_to:06x}" if isinstance(c_to, int) else c_to
-                                bg_color = f"linear-gradient(135deg, {bg_color}, {c_to_hex})"
+                    # 🔴 3. استفاده از رنگ‌های آماده به جای رنگ خالی
+                    bg_color = COLORS[i % len(COLORS)]
 
                     # 4. قیمت
                     prices = info.get('prices', {})
