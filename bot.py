@@ -30,7 +30,6 @@ async def get_gifts_api():
 
         for gift in regular_gifts:
             try:
-                # گرفتن اطلاعات کامل گیفت (شامل مدل آپگرید شده)
                 info = gifts_lib.get_gift(gift.full_name, gift_type="upgraded")
                 
                 if info:
@@ -38,39 +37,40 @@ async def get_gifts_api():
                     if name not in seen:
                         seen.add(name)
                         
-                        # 1. استخراج قیمت
+                        # قیمت
                         prices = info.get('prices', {})
                         price = prices.get('tgmrkt_price_ton') or prices.get('fragment_price_ton') or 0
                         
-                        # 2. استخراج لینک تلگرام
-                        # کتابخانه معمولاً لینک رو در فیلد name یا slug یا id ذخیره میکنه
-                        slug = info.get('slug', '') or info.get('name', '')
-                        # اگر slug خالی بود، از اسم گیفت برای لینک استفاده میکنیم
+                        # 🔴 لینک واقعی: باید از فیلد slug استخراج بشه
+                        # در تلگرام، لینک واقعی به صورت t.me/nft/slug ساخته میشه
+                        slug = info.get('slug', '')
                         if not slug:
-                            slug = gift.full_name
-                        gift_link = f"https://t.me/nft/{slug}"
+                            # اگر slug نبود، از فیلد name داخل info استفاده میکنیم (نه اسم کامل)
+                            slug = info.get('name', '')
                         
-                        # 3. استخراج عکس (اولویت با وب‌پی یا عکس اصلی)
+                        # اگر باز هم خالی بود، از خود شیء gift استفاده میکنیم
+                        if not slug and hasattr(gift, 'slug'):
+                            slug = gift.slug
+                        
+                        gift_link = f"https://t.me/nft/{slug}" if slug else ""
+                        
+                        # 🔴 عکس با کیفیت بالا
                         links = info.get('links', {})
                         img_url = links.get('webp', '') or links.get('png', '') or links.get('jpg', '')
                         
-                        # 4. استخراج رنگ پس‌زمینه
-                        # تلگرام رنگ رو معمولاً در فیلد background_color یا background ذخیره میکنه
+                        # 🔴 بک‌گراند دقیق‌تر
+                        # گاهی اوقات رنگ توی فیلد background_color هست و گاهی background
                         bg_color = info.get('background_color', '') or info.get('background', '')
                         
-                        # اگر رنگ به صورت "center" یا "none" بود، خالی می‌کنیم تا فرانت‌اند رنگ پیش‌فرض خودش رو بذاره
-                        if bg_color in ['center', 'none', 'transparent', '']:
-                            bg_color = ''
-                        elif not bg_color.startswith('#') and bg_color:
-                            # اگر کد رنگ بدون # بود، اضافه میکنیم
+                        # اگر رنگ به صورت "#" نبود، اضافه میکنیم
+                        if bg_color and not bg_color.startswith('#'):
                             bg_color = f"#{bg_color}"
                         
-                        # 🔴 پرینت برای دیباگ (در بخش Logs در Railway اینها رو می‌بینی)
-                        print(f"--- DEBUG: {name} ---")
+                        # لاگ برای دیباگ در Railway
+                        print(f"--- {name} ---")
+                        print(f"Slug: {slug}")
                         print(f"Link: {gift_link}")
-                        print(f"BgColor: {bg_color}")
-                        print(f"Image: {img_url}")
-                        print(f"-----------------------")
+                        print(f"Bg: {bg_color}")
 
                         result.append({
                             "name": name,
@@ -80,11 +80,9 @@ async def get_gifts_api():
                             "bg_color": bg_color 
                         })
             except Exception as e:
-                # در صورت خطا در یک گیفت، بقیه ادامه پیدا کنند
-                print(f"Error processing gift {gift.full_name}: {e}")
+                print(f"Error on {gift.full_name}: {e}")
                 continue
             
-            # محدودیت 600 تایی برای جلوگیری از کرش کردن سرور
             if len(result) >= 600:
                 break
 
