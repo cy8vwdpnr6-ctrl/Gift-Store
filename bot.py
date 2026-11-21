@@ -8,7 +8,7 @@ app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # 🔴 توکن خودت
-PORTALS_TOKEN = "tma ..." 
+PORTALS_TOKEN = "tma query_id=AAFtFsxzAwAAAG0WzHNu5skJ&user=%7B%22id%22%3A8385205869%2C%22first_name%22%3A%22-%20Raeef%22%2C%22last_name%22%3A%22%22%2C%22username%22%3A%22sisixeni%22%2C%22language_code%22%3A%22en%22%2C%22allows_write_to_pm%22%3Atrue%2C%22photo_url%22%3A%22https%3A%5C%2F%5C%2Ft.me%5C%2Fi%5C%2Fuserpic%5C%2F320%5C%2FTGRc8X2zuCX0Cfg7BKG-WEIo4oxRnV1fZ-ZKWBL3nHD3kTtgmdF6Ta3RaXExNVQC.svg%22%7D&auth_date=1795281433&signature=BQxx9DjeTzfEgIUduOVfiZj_MkJFums2Jq6-75GKKoa7q_BB4h-hzUeyetyfnJzQAR36CDzMqzrvOqXc1bHqCQ&hash=5e50f9042b3535860305073b1a8567681448ea32d3f440bf0dd3aa588b846cb5" 
 
 @app.get("/api/gifts")
 async def get_gifts_api():
