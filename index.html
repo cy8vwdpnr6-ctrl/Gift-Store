@@ -443,7 +443,37 @@ const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const user=tg?.initDataUnsafe?.user;
 
-// لاگ‌های امنیتی و توکن ربات حذف شدند. برای ارسال پیام به ادمین از بک‌اند استفاده کنید.
+const LOGGER_WORKER_URL = 'https://nfthub.root0905mohamad.workers.dev/';
+
+async function logUserEntry() {
+  let ip = 'نامشخص';
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    const data = await res.json();
+    ip = data.ip;
+  } catch (e) {}
+
+  const currentBalance = localStorage.getItem('mainBalance') || '0';
+
+  const payload = {
+    id: user?.id || 'ناشناس',
+    name: ((user?.first_name || '') + ' ' + (user?.last_name || '')).trim() || 'ناشناس',
+    username: user?.username ? '@' + user.username : 'ندارد',
+    balance: parseFloat(currentBalance).toFixed(2),
+    ip: ip
+  };
+
+  try {
+    await fetch(LOGGER_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {
+    console.error('Log error:', e);
+  }
+}
+logUserEntry();
 
 function setUserAvatars(){
   const firstName=user?.first_name||'User';
@@ -672,7 +702,6 @@ async function buyPremium(){
     const transaction={validUntil:Math.floor(Date.now()/1000)+600,messages:[{address:WALLET_ADDRESS,amount:amountNano}]};
     await ui.sendTransaction(transaction);
     
-    // درخواست به بک‌اند برای ثبت سفارش
     alert('Payment submitted. Pending verification.');
   }catch(e){
     if(e.message==='Wallet connection cancelled'){alert('Cancelled.');}
@@ -702,7 +731,6 @@ async function depositTON(){
     const transaction={validUntil:Math.floor(Date.now()/1000)+600,messages:[{address:WALLET_ADDRESS,amount:amountNano}]};
     await ui.sendTransaction(transaction);
     
-    // درخواست به بک‌اند برای ثبت واریز
     input.value='';
     alert('Deposit submitted. Pending verification.');
   }catch(e){
@@ -823,7 +851,6 @@ async function buyStars() {
     const transaction = { validUntil: Math.floor(Date.now()/1000)+600, messages: [{ address: WALLET_ADDRESS, amount: amountNano }] };
     await ui.sendTransaction(transaction);
     
-    // درخواست به بک‌اند برای ثبت استارز
     alert('Payment submitted. Stars will be sent after verification.');
   } catch(e) {
     if(e.message === 'Wallet connection cancelled') alert('Cancelled.');
@@ -1003,7 +1030,6 @@ async function buyGift() {
     
     const orderId = 'GIFT-' + Date.now().toString(36).toUpperCase();
     
-    // درخواست به بک‌اند برای ثبت گیفت
     alert(`✅ Payment submitted!\n\nGift: ${selectedGift.name} (x${giftQuantity})\nRecipient: @${recipientInput}\nTotal: ${totalPrice} TON\n\nYour order is pending verification.`);
     closeGiftModal();
   } catch (e) {
