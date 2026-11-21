@@ -11,14 +11,19 @@ from datetime import datetime, timezone
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-PORTALS_TOKEN = os.getenv("PORTALS_TOKEN", "tma query_id=AAFtFsxzAwAAAG0WzHNu5skJ&user=...")
+# 🔴 توکن پورتال خودت (همون که داشتی)
+PORTALS_TOKEN = "tma query_id=AAFtFsxzAwAAAG0WzHNu5skJ&user=%7B%22id%22%3A8385205869..."
+
+# 🔴 متغیرهای کلودفلر (همون‌هایی که تو تنظیمات Railway گذاشتی)
 CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 CLOUDFLARE_KV_NAMESPACE_ID = os.getenv("CLOUDFLARE_KV_NAMESPACE_ID")
 CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")
 
-# این دو متغیر باید حتماً توی تنظیمات Railway (بخش Variables) باشن
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-YOUR_CHAT_ID = os.getenv("YOUR_CHAT_ID", "")
+# =======================================================
+# 🔴 اینجا توکن و آیدی خودت رو بذار (داخل دابل کوتیشن) 🔴
+TELEGRAM_BOT_TOKEN = "8771799457:AAFtq13l9xHqkI5xHyV_03y350xJ-r5OrgI" 
+YOUR_CHAT_ID = "6973598061"
+# =======================================================
 
 COLOR_MAP = {
     "Pine Green": "#017561", "Mystic Pearl": "#E6E0D4", "Silver Blue": "#8A9A9D",
@@ -27,7 +32,7 @@ COLOR_MAP = {
     "Crimson Red": "#990000", "Gold": "#FFD700"
 }
 
-# --- توابع کمکی ---
+# --- توابع کمکی برای کار با Cloudflare KV ---
 async def save_to_kv(key: str, value: str):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/{CLOUDFLARE_KV_NAMESPACE_ID}/values/{key}"
     headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
@@ -45,23 +50,21 @@ async def get_from_kv(key: str):
         return None
 
 async def send_telegram_message(text: str):
-    if not TELEGRAM_BOT_TOKEN or not YOUR_CHAT_ID:
-        print("❌ خطا: توکن ربات یا Chat ID در تنظیمات Railway وجود ندارد.")
-        return
+    if not TELEGRAM_BOT_TOKEN or not YOUR_CHAT_ID: return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": YOUR_CHAT_ID, "text": text, "parse_mode": "HTML"}
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(url, json=payload)
             if response.status_code != 200:
-                print(f"❌ خطای تلگرام: {response.text}") # چاپ خطا در لاگ‌ها
+                print(f"❌ خطای تلگرام: {response.text}")
             else:
                 print("✅ پیام با موفقیت به تلگرام ارسال شد.")
         except Exception as e:
-            print(f"❌ خطای شبکه در ارسال پیام: {e}")
+            print(f"❌ خطا در ارسال: {e}")
 
 # ==========================================
-# 📌 زمان پایان ثابت
+# 📌 زمان پایان ثابت (Hardcoded)
 # ==========================================
 FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
 
@@ -131,7 +134,7 @@ async def get_timer():
     }
 
 # ==========================================
-# ۴. دریافت اطلاعات از مینی‌اپ (وقتی باز میشه)
+# ۴. دریافت اطلاعات از مینی‌اپ (Webapp Login)
 # ==========================================
 @app.post("/api/webapp/login")
 async def webapp_login(request: Request):
@@ -142,7 +145,7 @@ async def webapp_login(request: Request):
         first_name = data.get("first_name", "")
         client_ip = request.client.host
         
-        print(f"📥 دریافت اطلاعات از مینی‌اپ: {user_id}") # لاگ برای تست
+        print(f"📥 دریافت اطلاعات از مینی‌اپ: {user_id}")
         
         user_data = f"name: {first_name} | username: @{username} | ip: {client_ip}"
         await save_to_kv(f"user_info_{user_id}", user_data)
@@ -160,59 +163,6 @@ async def webapp_login(request: Request):
     except Exception as e:
         print(f"❌ خطا در پردازش: {e}")
         return {"status": "error", "message": str(e)}
-
-# ==========================================
-# ۵. دریافت پیام استارت ربات (Webhook)
-# ==========================================
-@app.post("/api/telegram/webhook")
-async def telegram_webhook(request: Request):
-    try:
-        data = await request.json()
-        print(f"📩 پیام جدید از تلگرام دریافت شد.") # لاگ برای تست
-        
-        if "message" in data and "text" in data["message"]:
-            message = data["message"]
-            text = message["text"]
-            
-            # اگر کاربر دکمه استارت رو زد
-            if text.startswith("/start"):
-                user = message["from"]
-                user_id = user.get("id", "Unknown")
-                username = user.get("username", "No Username")
-                first_name = user.get("first_name", "")
-                
-                print(f"🚀 ربات استارت شد توسط: {user_id}") # لاگ برای تست
-                
-                message_text = (
-                    f"🚀 <b>ربات استارت شد!</b>\n\n"
-                    f"🆔 <b>آیدی:</b> <code>{user_id}</code>\n"
-                    f"🔗 <b>یوزرنیم:</b> @{username}\n"
-                    f"📝 <b>نام:</b> {first_name}"
-                )
-                await send_telegram_message(message_text)
-                
-        return {"ok": True}
-    except Exception as e:
-        print(f"❌ خطای وب‌هوک: {e}")
-        return {"ok": False}
-
-# ==========================================
-# ۶. تنظیم Webhook هنگام روشن شدن سرور
-# ==========================================
-@app.on_event("startup")
-async def startup_event():
-    # 🔴 آدرس دامنه پروژه خودت در Railway رو اینجا بذار (بدون اسلش در انتها)
-    RAILWAY_DOMAIN = "https://gift-store-production.up.railway.app"
-    
-    if TELEGRAM_BOT_TOKEN:
-        webhook_url = f"{RAILWAY_DOMAIN}/api/telegram/webhook"
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook?url={webhook_url}"
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(url)
-                print(f"✅ وضعیت وب‌هوک: {response.text}")
-            except Exception as e:
-                print(f"❌ خطا در تنظیم وب‌هوک: {e}")
 
 async def main():
     port = int(os.getenv("PORT", 8080))
