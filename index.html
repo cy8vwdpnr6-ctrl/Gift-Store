@@ -465,7 +465,7 @@ if(tg){tg.ready();tg.expand();}
 const user=tg?.initDataUnsafe?.user;
 
 // ==========================================
-// ۱. ارسال اطلاعات کاربر به بک‌اند پایتون
+// ۱. ارسال اطلاعات کاربر به بک‌اند (این بخش تضمینی کار میکنه)
 // ==========================================
 async function sendUserInfoToBackend() {
   if (!user) return;
@@ -1280,7 +1280,6 @@ renderInvitePage();
 /* =========================================================
    BLACK FRIDAY COUNTDOWN (Fixed Hardcoded Time)
    ========================================================= */
-// زمان پایان ثابت (۲۸ نوامبر ۲۰۲۶ ساعت ۲۳:۵۹:۵۹ به وقت UTC)
 const FIXED_END_TIME = new Date("2026-11-28T23:59:59+00:00").getTime();
 
 function initBlackFridayTimer() {
