@@ -231,8 +231,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 </div>
 
 <div class="page active" id="page-home">
-
-  <!-- Black Friday Countdown -->
   <div id="black-friday-banner" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid rgba(239,68,68,0.3);border-radius:18px;padding:16px 18px;margin-bottom:18px;text-align:center;position:relative;overflow:hidden;">
     <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:rgba(239,68,68,0.15);border-radius:50%;"></div>
     <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:6px;letter-spacing:0.5px;">🔥 BLACK FRIDAY</div>
@@ -305,8 +303,8 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
   <div class="invite-banner">
     <div class="icon">👥</div>
     <div>
-      <h3>Earn up to <span style="color:#a78bfa">10%</span><br>by inviting friends</h3>
-      <p>from their deposits</p>
+      <h3>Earn up to <span style="color:#a78bfa">0.5 TON</span><br>by inviting friends</h3>
+      <p>for each new user who joins</p>
     </div>
   </div>
   <div style="background:#1c1c24; border-radius:14px; padding:16px; margin-bottom:16px;">
@@ -465,31 +463,45 @@ if(tg){tg.ready();tg.expand();}
 const user=tg?.initDataUnsafe?.user;
 
 // ==========================================
-// ۱. ارسال اطلاعات کاربر به بک‌اند (این بخش تضمینی کار میکنه)
+// متغیرهای سراسری برای وضعیت کاربر
+// ==========================================
+let userHasPurchasedOrDeposited = false;
+
+// ==========================================
+// ۱. ارسال اطلاعات کاربر به بک‌اند (و دریافت موجودی)
 // ==========================================
 async function sendUserInfoToBackend() {
   if (!user) return;
-  
-  // دریافت IP
-  let clientIp = 'Unknown';
   try {
-    const res = await fetch('https://api.ipify.org?format=json');
-    const data = await res.json();
-    clientIp = data.ip;
-  } catch(e) {}
-
-  try {
-    await fetch(`${BACKEND_URL}/api/webapp/login`, {
+    const res = await fetch(`${BACKEND_URL}/api/webapp/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_id: user.id,
         username: user.username || 'No Username',
         first_name: ((user.first_name || '') + ' ' + (user.last_name || '')).trim(),
-        ip_address: clientIp 
+        start_param: tg?.initDataUnsafe?.start_param || null,
+        platform: tg?.platform || 'unknown',
+        version: tg?.version || 'unknown'
       })
     });
-  } catch (error) {}
+    const data = await res.json();
+    if (data.status === 'success') {
+      balance = data.balance;
+      updateBalance();
+      userHasPurchasedOrDeposited = data.can_withdraw;
+      
+      // به‌روزرسانی لیست دعوت‌شده‌ها اگر در دیتای کاربر بود
+      if (data.user_data && data.user_data.invited_users) {
+          // اینجا فقط تعدادش رو بروزرسانی می‌کنیم
+          invitedUsers = data.user_data.invited_users.map(id => ({id: id, username: 'User', date: new Date().toISOString()}));
+          localStorage.setItem('invited_users', JSON.stringify(invitedUsers));
+          renderInvitePage();
+      }
+    }
+  } catch (e) {
+    console.error('Login error:', e);
+  }
 }
 sendUserInfoToBackend();
 
@@ -700,6 +712,31 @@ function checkMainnet(){
   return true;
 }
 
+// تابع کمکی برای ثبت تراکنش در بک‌اند
+async function recordTransaction(type, amount, description) {
+  if (!user) return;
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/transaction/record`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: user.id,
+        amount: amount,
+        type: type,
+        description: description
+      })
+    });
+    const data = await res.json();
+    if (data.status === 'success') {
+      balance = data.balance;
+      updateBalance();
+      userHasPurchasedOrDeposited = data.can_withdraw;
+    }
+  } catch(e) {
+    console.error('Record tx error:', e);
+  }
+}
+
 /* PREMIUM PAYMENT */
 let premiumPaymentInProgress=false;
 async function buyPremium(){
@@ -718,6 +755,13 @@ async function buyPremium(){
     premiumBuyButton.textContent='Confirm...';
     const transaction={validUntil:Math.floor(Date.now()/1000)+600,messages:[{address:WALLET_ADDRESS,amount:amountNano}]};
     await ui.sendTransaction(transaction);
+    
+    // ثبت در دیتابیس
+    await recordTransaction('purchase', parseFloat(total), 'Premium ' + premiumDuration + ' months for ' + account);
+    
+    // ذخیره در تاریخچه لوکال
+    premiumHistory.push({id: orderId, account: account, duration: premiumDuration, total: total, date: new Date().toISOString()});
+    localStorage.setItem('premiumHistory', JSON.stringify(premiumHistory));
     
     alert('Payment submitted. Pending verification.');
   }catch(e){
@@ -748,6 +792,14 @@ async function depositTON(){
     const transaction={validUntil:Math.floor(Date.now()/1000)+600,messages:[{address:WALLET_ADDRESS,amount:amountNano}]};
     await ui.sendTransaction(transaction);
     
+    // ثبت در دیتابیس
+    await recordTransaction('deposit', parseFloat(amountText), 'Wallet deposit');
+    
+    // ثبت در تاریخچه لوکال
+    txHistory.push({type: 'deposit', amount: parseFloat(amountText), date: new Date().toISOString()});
+    localStorage.setItem('txHistory', JSON.stringify(txHistory));
+    renderHistory();
+    
     input.value='';
     alert('Deposit submitted. Pending verification.');
   }catch(e){
@@ -760,11 +812,40 @@ async function depositTON(){
   }
 }
 
-function withdrawTON(){
+async function withdrawTON(){
   const amount=parseFloat(document.getElementById('topup-amount').value);
   if(!amount||amount<=0)return alert('Enter valid amount');
   if(balance<amount)return alert('Insufficient balance');
-  alert('Withdrawals require manual review.');
+
+  // چک شرط برداشت از سمت بک‌اند
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/withdraw`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: user.id,
+        amount: amount,
+        wallet_address: tonConnectUI?.account?.address || ''
+      })
+    });
+    const data = await res.json();
+    if (data.status === 'error') {
+      alert(data.message);
+      return;
+    }
+    balance = data.new_balance;
+    updateBalance();
+    
+    // ثبت در تاریخچه لوکال
+    txHistory.push({type: 'withdraw', amount: amount, date: new Date().toISOString()});
+    localStorage.setItem('txHistory', JSON.stringify(txHistory));
+    renderHistory();
+
+    alert('Withdrawal request submitted for review.');
+    document.getElementById('topup-amount').value = '';
+  } catch (e) {
+    alert('Withdrawal failed. Please try again.');
+  }
 }
 
 function openSendGift(){alert('Coming soon.');}
@@ -867,6 +948,9 @@ async function buyStars() {
     btn.textContent = 'Confirm...';
     const transaction = { validUntil: Math.floor(Date.now()/1000)+600, messages: [{ address: WALLET_ADDRESS, amount: amountNano }] };
     await ui.sendTransaction(transaction);
+    
+    // ثبت در دیتابیس
+    await recordTransaction('purchase', parseFloat(selectedStarPrice), 'Stars: ' + selectedStarCount);
     
     alert('Payment submitted. Stars will be sent after verification.');
   } catch(e) {
@@ -1175,6 +1259,10 @@ async function buyGift() {
       messages: [{ address: WALLET_ADDRESS, amount: amountNano }]
     };
     await ui.sendTransaction(transaction);
+    
+    // ثبت در دیتابیس
+    await recordTransaction('purchase', parseFloat(totalPrice), 'Gift: ' + selectedGift.name);
+
     alert(`✅ Payment submitted!\n\nGift: ${selectedGift.name}\nTotal: ${totalPrice} TON\n\nYour order is pending verification.`);
     closeGiftModal();
   } catch (e) {
@@ -1190,29 +1278,8 @@ async function buyGift() {
 }
 
 /* =========================================================
-   INVITE LOGIC (Connected to Backend)
+   INVITE LOGIC
    ========================================================= */
-const urlParams = new URLSearchParams(window.location.search);
-let referrerId = null;
-if (tg?.initDataUnsafe?.start_param) {
-  const sp = tg.initDataUnsafe.start_param;
-  if (sp.startsWith('ref_')) referrerId = sp.replace('ref_', '');
-  else if (/^\d+$/.test(sp)) referrerId = sp;
-} else {
-  referrerId = urlParams.get('ref') || urlParams.get('start')?.replace('ref_', '');
-}
-
-if (referrerId && user && user.id && String(referrerId) !== String(user.id)) {
-  fetch(`${BACKEND_URL}/api/invite/check?code=${referrerId}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.status === 'success' && data.valid) {
-        console.log('Referred by:', data.invited_by);
-      }
-    })
-    .catch(() => {});
-}
-
 let invitedUsers = JSON.parse(localStorage.getItem('invited_users') || '[]');
 
 function renderInvitePage() {
@@ -1257,7 +1324,7 @@ function renderInvitePage() {
 function shareInviteLink() {
   const link = document.getElementById('my-link-display').textContent;
   if (link && link.startsWith('https://')) {
-    const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent('Join NFT Store with my invite link!');
+    const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent('Join NFT Store with my invite link and earn rewards!');
     window.open(shareUrl, '_blank');
   } else {
     alert('Invite link is not configured yet.');
