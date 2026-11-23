@@ -12,18 +12,21 @@ from datetime import datetime, timezone
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# ⚠️ توکن‌ها باید از محیط (Environment Variables) خونده بشن
+# =======================================================
+# ⚠️ این مقادیر را از طریق Environment Variables در Railway تنظیم کنید
 PORTALS_TOKEN = os.getenv("PORTALS_TOKEN", "")
 CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 CLOUDFLARE_KV_NAMESPACE_ID = os.getenv("CLOUDFLARE_KV_NAMESPACE_ID")
 CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")
 
+# توکن ربات و آیدی چت خود را در Railway تنظیم کنید
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 YOUR_CHAT_ID = os.getenv("YOUR_CHAT_ID", "")
+# =======================================================
 
-BOT_USERNAME = "NftsHubbot"  # یوزرنیم ربات خودت
-INVITE_REWARD = 0.5           # پاداش هر دعوت به تون
-MIN_DEPOSIT_FOR_WITHDRAW = 1.0  # حداقل شارژ برای برداشت
+BOT_USERNAME = "NftsHubbot" 
+INVITE_REWARD = 0.5           
+MIN_DEPOSIT_FOR_WITHDRAW = 1.0  
 
 COLOR_MAP = {
     "Pine Green": "#017561", "Mystic Pearl": "#E6E0D4", "Silver Blue": "#8A9A9D",
@@ -36,6 +39,7 @@ COLOR_MAP = {
 # Cloudflare KV Helper
 # =========================================================
 async def save_to_kv(key: str, value: str):
+    if not CLOUDFLARE_API_TOKEN: return False
     url = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/{CLOUDFLARE_KV_NAMESPACE_ID}/values/{key}"
     headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
     async with httpx.AsyncClient() as client:
@@ -43,6 +47,7 @@ async def save_to_kv(key: str, value: str):
         return response.status_code == 200
 
 async def get_from_kv(key: str):
+    if not CLOUDFLARE_API_TOKEN: return None
     url = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/{CLOUDFLARE_KV_NAMESPACE_ID}/values/{key}"
     headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
     async with httpx.AsyncClient() as client:
@@ -50,12 +55,6 @@ async def get_from_kv(key: str):
         if response.status_code == 200:
             return response.text
         return None
-
-async def delete_from_kv(key: str):
-    url = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/{CLOUDFLARE_KV_NAMESPACE_ID}/values/{key}"
-    headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
-    async with httpx.AsyncClient() as client:
-        await client.delete(url, headers=headers)
 
 # =========================================================
 # ذخیره و بازیابی اطلاعات کاربر
@@ -70,10 +69,10 @@ async def get_user_data(user_id: str) -> dict:
     return {
         "user_id": user_id,
         "balance": 0.0,
-        "total_deposited": 0.0,   # مجموع شارژ تون
-        "total_purchases": 0,     # تعداد خرید موفق
+        "total_deposited": 0.0,   
+        "total_purchases": 0,     
         "invited_by": None,
-        "invited_users": [],      # لیست آیدی کاربرانی که این شخص دعوت کرده
+        "invited_users": [],      
         "rewards_earned": 0.0,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
@@ -86,19 +85,22 @@ async def save_user_data(user_id: str, data: dict):
 # =========================================================
 async def send_telegram_message(text: str):
     if not TELEGRAM_BOT_TOKEN or not YOUR_CHAT_ID:
+        print("❌ توکن یا آیدی تنظیم نشده.")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": YOUR_CHAT_ID, "text": text, "parse_mode": "HTML"}
     async with httpx.AsyncClient() as client:
         try:
-            await client.post(url, json=payload)
+            response = await client.post(url, json=payload)
+            if response.status_code != 200:
+                print(f"❌ خطای تلگرام: {response.text}")
         except Exception as e:
-            print(f"❌ Telegram: {e}")
+            print(f"❌ خطای شبکه: {e}")
 
 FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
 
 # =========================================================
-# API گیت‌ها
+# API ها
 # =========================================================
 @app.get("/api/gifts")
 async def get_gifts_api(offset: int = 0, limit: int = 50):
@@ -135,7 +137,7 @@ async def get_timer():
     return {"status": "success", "end_time": FIXED_END_TIME, "remaining_seconds": int(remaining)}
 
 # =========================================================
-# ورود به مینی‌اپ + مدیریت دعوت
+# ورود به مینی‌اپ + ارسال اطلاعات کامل
 # =========================================================
 @app.post("/api/webapp/login")
 async def webapp_login(request: Request):
@@ -147,42 +149,32 @@ async def webapp_login(request: Request):
         start_param = data.get("start_param", None)
         platform = data.get("platform", "unknown")
         version = data.get("version", "unknown")
+        client_ip_from_frontend = data.get("ip_address", "Unknown")
 
         if not user_id or user_id == "Unknown":
             raise HTTPException(status_code=400, detail="user_id required")
 
         client_ip = request.headers.get("x-forwarded-for", request.client.host)
         if "," in client_ip: client_ip = client_ip.split(",")[0].strip()
+        if client_ip in ("127.0.0.1", "::1"): 
+            client_ip = client_ip_from_frontend
 
         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         user_data = await get_user_data(user_id)
-        is_new_user = user_data["created_at"] == user_data.get("created_at") and len(user_data["invited_users"]) == 0 and user_data["balance"] == 0
 
-        # 🎯 منطق دعوت
         if start_param and start_param.startswith("ref_"):
             referrer_id = start_param.replace("ref_", "")
             if referrer_id != user_id and user_data["invited_by"] is None:
-                # ثبت دعوت
                 user_data["invited_by"] = referrer_id
                 await save_user_data(user_id, user_data)
 
-                # پاداش به دعوت‌کننده
                 referrer_data = await get_user_data(referrer_id)
                 if user_id not in referrer_data["invited_users"]:
                     referrer_data["invited_users"].append(user_id)
                     referrer_data["balance"] += INVITE_REWARD
                     referrer_data["rewards_earned"] += INVITE_REWARD
                     await save_user_data(referrer_id, referrer_data)
-
-                    # اطلاع‌رسانی
-                    await send_telegram_message(
-                        f"🎁 <b>پاداش دعوت جدید!</b>\n\n"
-                        f"👤 کاربر @{username} (<code>{user_id}</code>) با لینک شما وارد شد.\n"
-                        f"💰 <b>+{INVITE_REWARD} TON</b> به موجودی شما اضافه شد.\n"
-                        f"📊 موجودی جدید دعوت‌کننده: <b>{referrer_data['balance']:.2f} TON</b>"
-                    )
         elif start_param and start_param.isdigit() and start_param != user_id:
-            # پشتیبانی از لینک با آیدی مستقیم
             referrer_id = start_param
             if user_data["invited_by"] is None:
                 user_data["invited_by"] = referrer_id
@@ -195,17 +187,17 @@ async def webapp_login(request: Request):
                     referrer_data["rewards_earned"] += INVITE_REWARD
                     await save_user_data(referrer_id, referrer_data)
 
-        # پیام ورود
+        # پیام تلگرام شامل تمام اطلاعات و موجودی
         message_text = (
-            f"🚪 <b>ورود / استارت</b>\n\n"
-            f"👤 <b>نام:</b> {first_name}\n"
-            f"🆔 <b>آیدی:</b> <code>{user_id}</code>\n"
-            f"📱 <b>یوزرنیم:</b> @{username}\n"
+            f"🚪 <b>ورود جدید به مینی‌اپ</b>\n\n"
+            f"👤 <b>اسم تلگرام:</b> {first_name}\n"
+            f"📱 <b>نام کاربری:</b> @{username}\n"
+            f"🆔 <b>آیدی عددی:</b> <code>{user_id}</code>\n"
             f"🌐 <b>آی‌پی:</b> <code>{client_ip}</code>\n"
-            f"📟 <b>دستگاه:</b> {platform} ({version})\n"
-            f"🔗 <b>start_param:</b> {start_param or 'ندارد'}\n"
-            f"⏰ <b>زمان:</b> {now_str}\n"
-            f"💰 <b>موجودی:</b> {user_data['balance']:.2f} TON"
+            f"📟 <b>دستگاه:</b> {platform} (نسخه {version})\n"
+            f"💰 <b>موجودی فعلی:</b> <b>{user_data['balance']:.2f} TON</b>\n"
+            f"🔗 <b>لینک ورودی:</b> {start_param or 'ندارد'}\n"
+            f"⏰ <b>زمان ورود:</b> {now_str}"
         )
         await send_telegram_message(message_text)
 
@@ -222,24 +214,18 @@ async def webapp_login(request: Request):
 def check_can_withdraw(user_data: dict) -> bool:
     return (user_data["balance"] >= MIN_DEPOSIT_FOR_WITHDRAW) or (user_data["total_purchases"] > 0) or (user_data["total_deposited"] >= MIN_DEPOSIT_FOR_WITHDRAW)
 
-# =========================================================
-# دریافت موجودی کاربر
-# =========================================================
 @app.get("/api/user/balance")
 async def get_balance(user_id: str):
     data = await get_user_data(user_id)
     return {"status": "success", "balance": data["balance"], "can_withdraw": check_can_withdraw(data), "user_data": data}
 
-# =========================================================
-# ثبت تراکنش (شارژ / خرید)
-# =========================================================
 @app.post("/api/transaction/record")
 async def record_transaction(request: Request):
     try:
         data = await request.json()
         user_id = str(data.get("user_id", ""))
         amount = float(data.get("amount", 0))
-        tx_type = data.get("type", "deposit")  # deposit / purchase
+        tx_type = data.get("type", "deposit")
         description = data.get("description", "")
         tx_hash = data.get("tx_hash", "")
 
@@ -253,7 +239,6 @@ async def record_transaction(request: Request):
             user_data["total_deposited"] += amount
         elif tx_type == "purchase":
             user_data["total_purchases"] += 1
-            # خرید از موجودی کم نمی‌شه، چون کاربر مستقیم از کیف پولش می‌ده
 
         await save_user_data(user_id, user_data)
 
@@ -263,7 +248,6 @@ async def record_transaction(request: Request):
             f"📊 نوع: {tx_type}\n"
             f"💵 مبلغ: {amount} TON\n"
             f"📝 توضیح: {description}\n"
-            f"🔗 هش: <code>{tx_hash[:20] if tx_hash else 'N/A'}</code>\n"
             f"💰 موجودی جدید: <b>{user_data['balance']:.2f} TON</b>"
         )
 
@@ -271,9 +255,6 @@ async def record_transaction(request: Request):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# =========================================================
-# درخواست برداشت
-# =========================================================
 @app.post("/api/withdraw")
 async def request_withdraw(request: Request):
     try:
@@ -284,7 +265,6 @@ async def request_withdraw(request: Request):
 
         user_data = await get_user_data(user_id)
 
-        # ✅ چک شرط برداشت
         if not check_can_withdraw(user_data):
             return {
                 "status": "error",
