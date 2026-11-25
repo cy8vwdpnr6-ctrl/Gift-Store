@@ -1,28 +1,21 @@
 import os
-import asyncio
 import json
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 import httpx
-import random
-import string
 from datetime import datetime, timezone
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from workers import asgi
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # =======================================================
-# ⚠️ این مقادیر را از طریق Environment Variables در Railway تنظیم کنید
+# متغیرهای محیطی (در تنظیمات Cloudflare Workers تنظیم می‌شوند)
+# =======================================================
 PORTALS_TOKEN = os.getenv("PORTALS_TOKEN", "")
-CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
-CLOUDFLARE_KV_NAMESPACE_ID = os.getenv("CLOUDFLARE_KV_NAMESPACE_ID")
-CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")
-
-# توکن ربات و آیدی چت خود را در Railway تنظیم کنید
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 YOUR_CHAT_ID = os.getenv("YOUR_CHAT_ID", "")
-# =======================================================
 
 BOT_USERNAME = "NftsHubbot" 
 INVITE_REWARD = 0.5           
@@ -36,24 +29,24 @@ COLOR_MAP = {
 }
 
 # =========================================================
-# Cloudflare KV Helper
+# Cloudflare KV Helper (مستقیم و بدون HTTP)
 # =========================================================
 async def save_to_kv(key: str, value: str):
-    if not CLOUDFLARE_API_TOKEN: return False
-    url = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/{CLOUDFLARE_KV_NAMESPACE_ID}/values/{key}"
-    headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
-    async with httpx.AsyncClient() as client:
-        response = await client.put(url, headers=headers, content=value)
-        return response.status_code == 200
+    try:
+        from js import MY_KV_NAMESPACE
+        await MY_KV_NAMESPACE.put(key, value)
+        return True
+    except Exception as e:
+        print(f"KV Save Error: {e}")
+        return False
 
 async def get_from_kv(key: str):
-    if not CLOUDFLARE_API_TOKEN: return None
-    url = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/{CLOUDFLARE_KV_NAMESPACE_ID}/values/{key}"
-    headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers)
-        if response.status_code == 200:
-            return response.text
+    try:
+        from js import MY_KV_NAMESPACE
+        val = await MY_KV_NAMESPACE.get(key)
+        return val
+    except Exception as e:
+        print(f"KV Get Error: {e}")
         return None
 
 # =========================================================
@@ -85,19 +78,28 @@ async def save_user_data(user_id: str, data: dict):
 # =========================================================
 async def send_telegram_message(text: str):
     if not TELEGRAM_BOT_TOKEN or not YOUR_CHAT_ID:
-        print("❌ توکن یا آیدی تنظیم نشده.")
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": YOUR_CHAT_ID, "text": text, "parse_mode": "HTML"}
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url, json=payload)
-            if response.status_code != 200:
-                print(f"❌ خطای تلگرام: {response.text}")
+            await client.post(url, json=payload)
         except Exception as e:
-            print(f"❌ خطای شبکه: {e}")
+            print(f"Telegram Error: {e}")
 
 FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
+
+# =========================================================
+# سرو کردن فرانت‌اند (index.html)
+# =========================================================
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    # فرض بر این است که index.html در همان پوشه قرار دارد
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<h1>index.html not found!</h1>"
 
 # =========================================================
 # API ها
@@ -136,9 +138,6 @@ async def get_timer():
     remaining = max(0, (end_time - now).total_seconds())
     return {"status": "success", "end_time": FIXED_END_TIME, "remaining_seconds": int(remaining)}
 
-# =========================================================
-# ورود به مینی‌اپ + ارسال اطلاعات کامل
-# =========================================================
 @app.post("/api/webapp/login")
 async def webapp_login(request: Request):
     try:
@@ -154,10 +153,7 @@ async def webapp_login(request: Request):
         if not user_id or user_id == "Unknown":
             raise HTTPException(status_code=400, detail="user_id required")
 
-        client_ip = request.headers.get("x-forwarded-for", request.client.host)
-        if "," in client_ip: client_ip = client_ip.split(",")[0].strip()
-        if client_ip in ("127.0.0.1", "::1"): 
-            client_ip = client_ip_from_frontend
+        client_ip = request.headers.get("cf-connecting-ip", "Unknown")
 
         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         user_data = await get_user_data(user_id)
@@ -167,7 +163,6 @@ async def webapp_login(request: Request):
             if referrer_id != user_id and user_data["invited_by"] is None:
                 user_data["invited_by"] = referrer_id
                 await save_user_data(user_id, user_data)
-
                 referrer_data = await get_user_data(referrer_id)
                 if user_id not in referrer_data["invited_users"]:
                     referrer_data["invited_users"].append(user_id)
@@ -179,7 +174,6 @@ async def webapp_login(request: Request):
             if user_data["invited_by"] is None:
                 user_data["invited_by"] = referrer_id
                 await save_user_data(user_id, user_data)
-
                 referrer_data = await get_user_data(referrer_id)
                 if user_id not in referrer_data["invited_users"]:
                     referrer_data["invited_users"].append(user_id)
@@ -187,7 +181,6 @@ async def webapp_login(request: Request):
                     referrer_data["rewards_earned"] += INVITE_REWARD
                     await save_user_data(referrer_id, referrer_data)
 
-        # پیام تلگرام شامل تمام اطلاعات و موجودی
         message_text = (
             f"🚪 <b>ورود جدید به مینی‌اپ</b>\n\n"
             f"👤 <b>اسم تلگرام:</b> {first_name}\n"
@@ -208,7 +201,7 @@ async def webapp_login(request: Request):
             "user_data": user_data
         }
     except Exception as e:
-        print(f"❌ خطا: {e}")
+        print(f"Login Error: {e}")
         return {"status": "error", "message": str(e)}
 
 def check_can_withdraw(user_data: dict) -> bool:
@@ -227,8 +220,7 @@ async def record_transaction(request: Request):
         amount = float(data.get("amount", 0))
         tx_type = data.get("type", "deposit")
         description = data.get("description", "")
-        tx_hash = data.get("tx_hash", "")
-
+        
         if not user_id or amount <= 0:
             raise HTTPException(status_code=400, detail="Invalid data")
 
@@ -266,11 +258,7 @@ async def request_withdraw(request: Request):
         user_data = await get_user_data(user_id)
 
         if not check_can_withdraw(user_data):
-            return {
-                "status": "error",
-                "code": "NOT_ELIGIBLE",
-                "message": "To withdraw, you must have at least one TON in your balance (charged/deposited) or have made at least one purchase."
-            }
+            return {"status": "error", "code": "NOT_ELIGIBLE", "message": "To withdraw, you must have at least one TON in your balance or have made at least one purchase."}
 
         if amount <= 0:
             return {"status": "error", "message": "Invalid amount"}
@@ -291,16 +279,7 @@ async def request_withdraw(request: Request):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.get("/api/invite/check")
-async def check_invite(code: str):
-    value = await get_from_kv(code)
-    return {"status": "success", "valid": bool(value), "invited_by": value or None}
-
-async def main():
-    port = int(os.getenv("PORT", 8080))
-    config = uvicorn.Config(app, host="0.0.0.0", port=port)
-    server = uvicorn.Server(config)
-    await server.serve()
-
-if __name__ == "__main__":
-    asyncio.run(main())
+# =========================================================
+# Entrypoint برای Cloudflare Workers
+# =========================================================
+Default = asgi.entrypoint(app)
