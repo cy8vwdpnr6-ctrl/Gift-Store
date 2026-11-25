@@ -3,7 +3,6 @@ main = "bot.py"
 compatibility_date = "2024-03-20"
 compatibility_flags = ["python_workers"]
 
-# اتصال به Cloudflare KV برای ذخیره اطلاعات کاربران
 [[kv_namespaces]]
 binding = "MY_KV_NAMESPACE"
 id = "825ebf4fa9e943508ac5b2539c4efceb"
