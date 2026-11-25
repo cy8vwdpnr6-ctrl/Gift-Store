@@ -459,6 +459,26 @@ const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const user=tg?.initDataUnsafe?.user;
 
+// ==========================================
+// حالت تعمیرات (فقط برای ادمین)
+// ==========================================
+const ADMIN_ID = "6973598061";
+
+if (user && String(user.id) !== ADMIN_ID) {
+    document.body.innerHTML = `
+        <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#0f0f0f; color:#fff; text-align:center; padding:20px; font-family:'Inter', sans-serif;">
+            <div>
+                <div style="font-size:60px; margin-bottom:20px;">🛠️</div>
+                <h2 style="margin-bottom:12px; font-size:22px;">در حال تعمیر و به‌روزرسانی</h2>
+                <p style="color:#8e8e93; font-size:15px; line-height:1.7;">ما در حال بهبود سیستم هستیم تا تجربه بهتری داشته باشید.<br>لطفاً چند دقیقه دیگر دوباره تلاش کنید.</p>
+            </div>
+        </div>
+    `;
+    // توقف اجرای بقیه اسکریپت‌ها
+    throw new Error("Maintenance Mode Active");
+}
+// ==========================================
+
 let userHasPurchasedOrDeposited = false;
 
 async function sendUserInfoToBackend() {
