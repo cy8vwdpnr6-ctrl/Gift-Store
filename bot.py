@@ -3,10 +3,9 @@ import json
 import httpx
 from datetime import datetime, timezone
 from workers import WorkerEntrypoint, Response
-from js import MY_KV_NAMESPACE
 
 # =========================================================
-# تنظیمات اولیه
+# تنظیمات اولیه (خواندن از Secrets کلادفلر)
 # =========================================================
 PORTALS_TOKEN = os.getenv("PORTALS_TOKEN", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -25,23 +24,23 @@ COLOR_MAP = {
 }
 
 # =========================================================
-# توابع کمکی دیتابیس (KV)
+# توابع دیتابیس (KV) - اصلاح‌شده با env
 # =========================================================
-async def save_to_kv(key: str, value: str):
+async def save_to_kv(env, key: str, value: str):
     try:
-        await MY_KV_NAMESPACE.put(key, value)
+        await env.MY_KV_NAMESPACE.put(key, value)
     except Exception as e:
         print(f"KV Save Error: {e}")
 
-async def get_from_kv(key: str):
+async def get_from_kv(env, key: str):
     try:
-        return await MY_KV_NAMESPACE.get(key)
+        return await env.MY_KV_NAMESPACE.get(key)
     except Exception as e:
         print(f"KV Get Error: {e}")
         return None
 
-async def get_user_data(user_id: str) -> dict:
-    raw = await get_from_kv(f"user_data_{user_id}")
+async def get_user_data(env, user_id: str) -> dict:
+    raw = await get_from_kv(env, f"user_data_{user_id}")
     if raw:
         try:
             return json.loads(raw)
@@ -53,8 +52,8 @@ async def get_user_data(user_id: str) -> dict:
         "rewards_earned": 0.0, "created_at": datetime.now(timezone.utc).isoformat()
     }
 
-async def save_user_data(user_id: str, data: dict):
-    await save_to_kv(f"user_data_{user_id}", json.dumps(data))
+async def save_user_data(env, user_id: str, data: dict):
+    await save_to_kv(env, f"user_data_{user_id}", json.dumps(data))
 
 async def send_telegram_message(text: str):
     if not TELEGRAM_BOT_TOKEN or not YOUR_CHAT_ID:
@@ -73,33 +72,26 @@ def check_can_withdraw(user_data: dict) -> bool:
            (user_data["total_deposited"] >= MIN_DEPOSIT_FOR_WITHDRAW)
 
 # =========================================================
-# روتینگ و منطق اصلی (بدون نیاز به FastAPI)
+# کلاس اصلی ورکر (بدون FastAPI)
 # =========================================================
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         url = request.url
         method = request.method
         
-        # استخراج مسیر (Path) از URL
+        # استخراج مسیر
         path = url.split("?")[0].replace("https://", "").replace("http://", "")
         path = "/" + path.split("/", 1)[1] if "/" in path else "/"
         
         headers = {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
         
-        # مدیریت درخواست‌های CORS
         if method == "OPTIONS":
-            return Response("", headers={
-                **headers, 
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS", 
-                "Access-Control-Allow-Headers": "*"
-            })
+            return Response("", headers={**headers, "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "*"})
 
         try:
-            # --- 1. صفحه اصلی ---
             if path == "/" and method == "GET":
                 return Response("<h1>Backend is Running!</h1>", headers={"Content-Type": "text/html"})
 
-            # --- 2. دریافت گیفت‌ها ---
             elif path == "/api/gifts" and method == "GET":
                 api_url = "https://portal-market.com/api/v1/marketplace/gifts"
                 req_headers = {"Authorization": f"Bearer {PORTALS_TOKEN}", "Accept": "application/json"}
@@ -129,14 +121,12 @@ class Default(WorkerEntrypoint):
                     result.append({"name": name, "price": price, "link": link, "image_url": img_url, "bg_color": bg_color})
                 return Response(json.dumps({"status": "success", "data": result}), headers=headers)
 
-            # --- 3. تایمر ---
             elif path == "/api/timer" and method == "GET":
                 end_time = datetime.fromisoformat(FIXED_END_TIME)
                 now = datetime.now(timezone.utc)
                 remaining = max(0, (end_time - now).total_seconds())
                 return Response(json.dumps({"status": "success", "end_time": FIXED_END_TIME, "remaining_seconds": int(remaining)}), headers=headers)
 
-            # --- 4. ورود مینی‌اپ ---
             elif path == "/api/webapp/login" and method == "POST":
                 data = await request.json()
                 user_id = str(data.get("user_id", ""))
@@ -147,34 +137,32 @@ class Default(WorkerEntrypoint):
                 if not user_id or user_id == "Unknown":
                     return Response(json.dumps({"status": "error", "message": "user_id required"}), headers=headers, status=400)
 
-                user_data = await get_user_data(user_id)
+                user_data = await get_user_data(self.env, user_id)
 
                 if start_param:
                     referrer_id = start_param.replace("ref_", "") if start_param.startswith("ref_") else start_param
                     if referrer_id.isdigit() and referrer_id != user_id and user_data.get("invited_by") is None:
                         user_data["invited_by"] = referrer_id
-                        await save_user_data(user_id, user_data)
-                        referrer_data = await get_user_data(referrer_id)
+                        await save_user_data(self.env, user_id, user_data)
+                        referrer_data = await get_user_data(self.env, referrer_id)
                         if user_id not in referrer_data["invited_users"]:
                             referrer_data["invited_users"].append(user_id)
                             referrer_data["balance"] += INVITE_REWARD
                             referrer_data["rewards_earned"] += INVITE_REWARD
-                            await save_user_data(referrer_id, referrer_data)
+                            await save_user_data(self.env, referrer_id, referrer_data)
 
                 await send_telegram_message(f"🚪 ورود جدید:\n👤 {first_name}\n🆔 {user_id}\n💰 {user_data['balance']:.2f} TON")
                 return Response(json.dumps({"status": "success", "balance": user_data["balance"], "can_withdraw": check_can_withdraw(user_data), "user_data": user_data}), headers=headers)
 
-            # --- 5. موجودی کاربر ---
             elif path == "/api/user/balance" and method == "GET":
                 query = url.split("?")[1] if "?" in url else ""
                 user_id = ""
                 for param in query.split("&"):
                     if param.startswith("user_id="): user_id = param.split("=")[1]
                 
-                data = await get_user_data(user_id)
+                data = await get_user_data(self.env, user_id)
                 return Response(json.dumps({"status": "success", "balance": data["balance"], "can_withdraw": check_can_withdraw(data), "user_data": data}), headers=headers)
 
-            # --- 6. ثبت تراکنش ---
             elif path == "/api/transaction/record" and method == "POST":
                 data = await request.json()
                 user_id = str(data.get("user_id", ""))
@@ -184,22 +172,21 @@ class Default(WorkerEntrypoint):
                 if not user_id or amount <= 0:
                     return Response(json.dumps({"status": "error", "message": "Invalid data"}), headers=headers, status=400)
 
-                user_data = await get_user_data(user_id)
+                user_data = await get_user_data(self.env, user_id)
                 if tx_type == "deposit":
                     user_data["balance"] += amount
                     user_data["total_deposited"] += amount
                 elif tx_type == "purchase":
                     user_data["total_purchases"] += 1
 
-                await save_user_data(user_id, user_data)
+                await save_user_data(self.env, user_id, user_data)
                 return Response(json.dumps({"status": "success", "balance": user_data["balance"], "can_withdraw": check_can_withdraw(user_data)}), headers=headers)
 
-            # --- 7. درخواست برداشت ---
             elif path == "/api/withdraw" and method == "POST":
                 data = await request.json()
                 user_id = str(data.get("user_id", ""))
                 amount = float(data.get("amount", 0))
-                user_data = await get_user_data(user_id)
+                user_data = await get_user_data(self.env, user_id)
 
                 if not check_can_withdraw(user_data):
                     return Response(json.dumps({"status": "error", "code": "NOT_ELIGIBLE", "message": "شرایط برداشت را ندارید."}), headers=headers)
@@ -207,10 +194,9 @@ class Default(WorkerEntrypoint):
                     return Response(json.dumps({"status": "error", "message": "مبلغ نامعتبر یا موجودی ناکافی"}), headers=headers)
 
                 user_data["balance"] -= amount
-                await save_user_data(user_id, user_data)
+                await save_user_data(self.env, user_id, user_data)
                 return Response(json.dumps({"status": "success", "message": "Withdrawal request submitted", "new_balance": user_data["balance"]}), headers=headers)
 
-            # --- 8. خطای 404 ---
             else:
                 return Response(json.dumps({"status": "error", "message": "Not Found"}), headers=headers, status=404)
                 
