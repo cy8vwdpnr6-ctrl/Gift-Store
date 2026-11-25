@@ -98,43 +98,69 @@ async def serve_frontend():
 @app.get("/api/gifts")
 async def get_gifts_api(offset: int = 0, limit: int = 50):
     try:
-        # جایگزینی aportalsmp با درخواست مستقیم HTTP
-        # ⚠️ نکته: آدرس API زیر باید دقیقاً بر اساس مستندات پورتالز تنظیم شود
-        url = "https://api.portals.com/v1/marketplace/search" 
-        headers = {"Authorization": f"Bearer {PORTALS_TOKEN}"}
-        params = {"offset": offset, "limit": limit, "sort": "price_asc"}
+        # 🌟 تغییر اصلی: آدرس دقیق و صحیح API پورتالز 🌟
+        url = "https://portal-market.com/api/v1/marketplace/gifts" 
+        
+        headers = {
+            "Authorization": f"Bearer {PORTALS_TOKEN}",
+            "Accept": "application/json"
+        }
+        params = {
+            "offset": offset, 
+            "limit": limit, 
+            "sort": "price_asc"
+        }
         
         async with httpx.AsyncClient() as client:
-            res = await client.get(url, headers=headers, params=params)
-            if res.status_code != 200:
-                return {"status": "error", "message": f"API Error: {res.status_code}"}
+            # ارسال درخواست با تنظیمات جدید
+            res = await client.get(url, headers=headers, params=params, timeout=15.0)
             
-            listings = res.json().get("data", []) # ساختار پاسخ ممکن است متفاوت باشد
+            # بررسی دقیق خطاها
+            if res.status_code == 401:
+                return {"status": "error", "message": "توکن پورتالز نامعتبر است (401). لطفاً PORTALS_TOKEN را بررسی کنید."}
+            elif res.status_code == 404:
+                return {"status": "error", "message": "آدرس API پیدا نشد (404). مسیر را بررسی کنید."}
+            elif res.status_code != 200:
+                return {"status": "error", "message": f"خطای سرور پورتالز: {res.status_code} - {res.text}"}
+            
+            # استخراج دیتا (ممکن است ساختار پاسخ کمی متفاوت باشد)
+            response_data = res.json()
+            # اگر پاسخ مستقیماً لیست نبود، داخل کلید data یا gifts می‌گردیم
+            listings = response_data if isinstance(response_data, list) else response_data.get("data", response_data.get("gifts", []))
 
         result = []
         seen_links = set()
         
         for gift in listings:
-            name = gift.get('name', 'Unknown')
-            price = gift.get('price', 0)
-            tg_id = gift.get('tg_id', '')
+            # استخراج فیلدها با مقادیر پیش‌فرض ایمن
+            name = gift.get('name', gift.get('title', 'Unknown'))
+            price = gift.get('price', gift.get('price_ton', 0))
+            tg_id = gift.get('tg_id', gift.get('id', ''))
             clean_name = name.replace(" ", "").replace("'", "")
+            
             link = f"https://t.me/nft/{clean_name}-{tg_id}" if tg_id else f"https://t.me/nft/{clean_name}"
             
             if link in seen_links: continue
             seen_links.add(link)
             
-            img_url = gift.get('photo_url', '') or ""
-            color_name = gift.get('backdrop', '')
+            img_url = gift.get('photo_url', gift.get('image', '')) or ""
+            color_name = gift.get('backdrop', gift.get('background', ''))
             bg_color = COLOR_MAP.get(color_name, "#1c1c1e")
             
             result.append({
-                "name": name, "price": price, "link": link, "image_url": img_url, "bg_color": bg_color
+                "name": name, 
+                "price": price, 
+                "link": link, 
+                "image_url": img_url, 
+                "bg_color": bg_color
             })
             
         return {"status": "success", "data": result}
+        
+    except httpx.TimeoutException:
+        return {"status": "error", "message": "زمان درخواست به پورتالز به پایان رسید (Timeout)."}
     except Exception as e:
-        return {"status": "error", "message": f"خطا: {str(e)}"}
+        return {"status": "error", "message": f"خطای داخلی سرور: {str(e)}"}
 
 @app.get("/api/timer")
 async def get_timer():
