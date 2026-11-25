@@ -1,8 +1,0 @@
-aiogram
-TelegramGifts
-aiogram
-TelegramGifts
-fastapi
-uvicorn
-httpx
-aportalsmp==1.3
