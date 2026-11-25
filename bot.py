@@ -3,16 +3,13 @@ import json
 import httpx
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from workers import asgi
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# =======================================================
-# متغیرهای محیطی (در تنظیمات Cloudflare Workers تنظیم می‌شوند)
-# =======================================================
 PORTALS_TOKEN = os.getenv("PORTALS_TOKEN", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 YOUR_CHAT_ID = os.getenv("YOUR_CHAT_ID", "")
@@ -29,7 +26,7 @@ COLOR_MAP = {
 }
 
 # =========================================================
-# Cloudflare KV Helper (مستقیم و بدون HTTP)
+# Cloudflare KV Helper
 # =========================================================
 async def save_to_kv(key: str, value: str):
     try:
@@ -60,14 +57,9 @@ async def get_user_data(user_id: str) -> dict:
         except:
             pass
     return {
-        "user_id": user_id,
-        "balance": 0.0,
-        "total_deposited": 0.0,   
-        "total_purchases": 0,     
-        "invited_by": None,
-        "invited_users": [],      
-        "rewards_earned": 0.0,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "user_id": user_id, "balance": 0.0, "total_deposited": 0.0,
+        "total_purchases": 0, "invited_by": None, "invited_users": [],
+        "rewards_earned": 0.0, "created_at": datetime.now(timezone.utc).isoformat()
     }
 
 async def save_user_data(user_id: str, data: dict):
@@ -94,7 +86,6 @@ FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
 # =========================================================
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
-    # فرض بر این است که index.html در همان پوشه قرار دارد
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
@@ -107,26 +98,40 @@ async def serve_frontend():
 @app.get("/api/gifts")
 async def get_gifts_api(offset: int = 0, limit: int = 50):
     try:
-        import aportalsmp
+        # جایگزینی aportalsmp با درخواست مستقیم HTTP
+        # ⚠️ نکته: آدرس API زیر باید دقیقاً بر اساس مستندات پورتالز تنظیم شود
+        url = "https://api.portals.com/v1/marketplace/search" 
+        headers = {"Authorization": f"Bearer {PORTALS_TOKEN}"}
+        params = {"offset": offset, "limit": limit, "sort": "price_asc"}
+        
+        async with httpx.AsyncClient() as client:
+            res = await client.get(url, headers=headers, params=params)
+            if res.status_code != 200:
+                return {"status": "error", "message": f"API Error: {res.status_code}"}
+            
+            listings = res.json().get("data", []) # ساختار پاسخ ممکن است متفاوت باشد
+
         result = []
         seen_links = set()
-        listings = await aportalsmp.search(
-            authData=PORTALS_TOKEN, gift_name="", limit=limit, offset=offset, sort="price_asc"
-        )
+        
         for gift in listings:
-            name = getattr(gift, 'name', 'Unknown')
-            price = getattr(gift, 'price', 0)
-            tg_id = getattr(gift, 'tg_id', '')
+            name = gift.get('name', 'Unknown')
+            price = gift.get('price', 0)
+            tg_id = gift.get('tg_id', '')
             clean_name = name.replace(" ", "").replace("'", "")
             link = f"https://t.me/nft/{clean_name}-{tg_id}" if tg_id else f"https://t.me/nft/{clean_name}"
+            
             if link in seen_links: continue
             seen_links.add(link)
-            img_url = getattr(gift, 'photo_url', '') or ""
-            color_name = getattr(gift, 'backdrop', '')
+            
+            img_url = gift.get('photo_url', '') or ""
+            color_name = gift.get('backdrop', '')
             bg_color = COLOR_MAP.get(color_name, "#1c1c1e")
+            
             result.append({
                 "name": name, "price": price, "link": link, "image_url": img_url, "bg_color": bg_color
             })
+            
         return {"status": "success", "data": result}
     except Exception as e:
         return {"status": "error", "message": f"خطا: {str(e)}"}
@@ -153,8 +158,7 @@ async def webapp_login(request: Request):
         if not user_id or user_id == "Unknown":
             raise HTTPException(status_code=400, detail="user_id required")
 
-        client_ip = request.headers.get("cf-connecting-ip", "Unknown")
-
+        client_ip = request.headers.get("cf-connecting-ip", client_ip_from_frontend)
         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         user_data = await get_user_data(user_id)
 
