@@ -3,9 +3,9 @@ import json
 import httpx
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from workers import asgi
+from workers import WorkerEntrypoint, Response
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -82,16 +82,7 @@ async def send_telegram_message(text: str):
 FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
 
 # =========================================================
-# سرو کردن فرانت‌اند (به صورت موقت برای تست بیلد)
-# =========================================================
-@app.get("/", response_class=HTMLResponse)
-async def serve_frontend():
-    # در محیط Cloudflare Workers خواندن فایل با open() کار نمی‌کند.
-    # این بخش را موقتاً به یک پیام ساده تغییر دادیم تا بیلد موفق شود.
-    return "<h1>Backend is Running! (HTML will be loaded via Assets)</h1>"
-
-# =========================================================
-# API ها
+# API ها (FastAPI Routes)
 # =========================================================
 @app.get("/api/gifts")
 async def get_gifts_api(offset: int = 0, limit: int = 50):
@@ -159,15 +150,10 @@ async def webapp_login(request: Request):
         username = data.get("username", "No Username")
         first_name = data.get("first_name", "")
         start_param = data.get("start_param", None)
-        platform = data.get("platform", "unknown")
-        version = data.get("version", "unknown")
-        client_ip_from_frontend = data.get("ip_address", "Unknown")
-
+        
         if not user_id or user_id == "Unknown":
             raise HTTPException(status_code=400, detail="user_id required")
 
-        client_ip = request.headers.get("cf-connecting-ip", client_ip_from_frontend)
-        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         user_data = await get_user_data(user_id)
 
         if start_param:
@@ -182,14 +168,7 @@ async def webapp_login(request: Request):
                     referrer_data["rewards_earned"] += INVITE_REWARD
                     await save_user_data(referrer_id, referrer_data)
 
-        message_text = (
-            f"🚪 <b>ورود جدید به مینی‌اپ</b>\n\n"
-            f"👤 <b>اسم:</b> {first_name}\n"
-            f"📱 <b>یوزرنیم:</b> @{username}\n"
-            f"🆔 <b>آیدی:</b> <code>{user_id}</code>\n"
-            f"💰 <b>موجودی:</b> <b>{user_data['balance']:.2f} TON</b>"
-        )
-        await send_telegram_message(message_text)
+        await send_telegram_message(f"🚪 ورود جدید:\n👤 {first_name}\n🆔 {user_id}\n💰 {user_data['balance']:.2f} TON")
 
         return {
             "status": "success",
@@ -198,7 +177,6 @@ async def webapp_login(request: Request):
             "user_data": user_data
         }
     except Exception as e:
-        print(f"Login Error: {e}")
         return {"status": "error", "message": str(e)}
 
 def check_can_withdraw(user_data: dict) -> bool:
@@ -256,7 +234,11 @@ async def request_withdraw(request: Request):
         return {"status": "error", "message": str(e)}
 
 # =========================================================
-# Entrypoint برای Cloudflare Workers
+# Entrypoint استاندارد و تضمینی برای Cloudflare Workers
 # =========================================================
-# فقط این خط برای اتصال FastAPI به Cloudflare Workers کافی است
-Default = asgi.entrypoint(app)
+class Default(WorkerEntrypoint):
+    async def fetch(self, request):
+        # تبدیل درخواست Cloudflare به درخواست ASGI برای FastAPI
+        from workers import asgi
+        asgi_handler = asgi.entrypoint(app)
+        return await asgi_handler.fetch(request)
