@@ -1,16 +1,11 @@
-import os
 import json
 from datetime import datetime, timezone
 from workers import WorkerEntrypoint, Response
-from js import fetch as js_fetch, Object
+from js import fetch as js_fetch, Object, Headers
 
 # =========================================================
-# تنظیمات اولیه (خواندن از Secrets کلادفلر)
+# تنظیمات اولیه
 # =========================================================
-PORTALS_TOKEN = os.getenv("PORTALS_TOKEN", "")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-YOUR_CHAT_ID = os.getenv("YOUR_CHAT_ID", "")
-
 BOT_USERNAME = "NftsHubbot" 
 INVITE_REWARD = 0.5           
 MIN_DEPOSIT_FOR_WITHDRAW = 1.0  
@@ -24,23 +19,41 @@ COLOR_MAP = {
 }
 
 # =========================================================
-# توابع کمکی برای درخواست با fetch بومی (بدون httpx)
+# تابع کمکی اصلاح شده برای Fetch در محیط Cloudflare
 # =========================================================
-async def fetch_json(url, method="GET", headers=None, body=None):
-    opts = Object.fromEntries([["method", method]])
-    if headers:
-        opts.headers = Object.fromEntries(list(headers.items()))
-    if body:
-        opts.body = json.dumps(body)
-        opts.headers = opts.headers or Object.fromEntries([])
-        opts.headers["Content-Type"] = "application/json"
-    
-    res = await js_fetch(url, opts)
-    text = await res.text()
+async def cf_fetch_json(url, method="GET", headers=None, body=None):
     try:
-        return json.loads(text), res.status
-    except:
-        return text, res.status
+        # تبدیل دیکشنری پایتون به آبجکت‌های جاوااسکریپت که Cloudflare می‌فهمد
+        js_headers = Headers.new()
+        if headers:
+            for key, value in headers.items():
+                js_headers.append(key, value)
+        
+        opts = Object.fromEntries([
+            ["method", method],
+            ["headers", js_headers]
+        ])
+        
+        if body:
+            opts.body = json.dumps(body)
+            js_headers.append("Content-Type", "application/json")
+        
+        # اجرای درخواست
+        res = await js_fetch(url, opts)
+        
+        # خواندن متن پاسخ
+        text = await res.text()
+        status = res.status
+        
+        try:
+            return json.loads(text), status
+        except:
+            return text, status
+            
+    except Exception as e:
+        print(f"Fetch Error: {str(e)}")
+        return {"status": "error", "message": str(e)}, 500
+
 
 # =========================================================
 # توابع دیتابیس (KV)
@@ -74,13 +87,17 @@ async def get_user_data(env, user_id: str) -> dict:
 async def save_user_data(env, user_id: str, data: dict):
     await save_to_kv(env, f"user_data_{user_id}", json.dumps(data))
 
-async def send_telegram_message(text: str):
-    if not TELEGRAM_BOT_TOKEN or not YOUR_CHAT_ID:
+async def send_telegram_message(env, text: str):
+    bot_token = env.TELEGRAM_BOT_TOKEN
+    chat_id = env.YOUR_CHAT_ID
+    if not bot_token or not chat_id:
+        print("Telegram tokens missing in ENV")
         return
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": YOUR_CHAT_ID, "text": text, "parse_mode": "HTML"}
+        
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
     try:
-        await fetch_json(url, method="POST", body=payload)
+        await cf_fetch_json(url, method="POST", body=payload)
     except Exception as e:
         print(f"Telegram Error: {e}")
 
@@ -115,18 +132,32 @@ class Default(WorkerEntrypoint):
                 return Response("<h1>Backend is Running!</h1>", headers={"Content-Type": "text/html"})
 
             elif path == "/api/gifts" and method == "GET":
+                portals_token = self.env.PORTALS_TOKEN
+                if not portals_token:
+                     return Response(json.dumps({"status": "error", "message": "PORTALS_TOKEN is not set"}), headers=headers, status=500)
+
                 api_url = "https://portal-market.com/api/v1/marketplace/gifts"
-                req_headers = {"Authorization": f"Bearer {PORTALS_TOKEN}", "Accept": "application/json"}
-                # درخواست با fetch بومی
-                res_data, status_code = await fetch_json(api_url, headers=req_headers)
+                req_headers = {"Authorization": f"Bearer {portals_token}", "Accept": "application/json"}
+                
+                res_data, status_code = await cf_fetch_json(api_url, headers=req_headers)
                 
                 if status_code != 200:
-                    return Response(json.dumps({"status": "error", "message": f"Server error: {status_code}"}), headers=headers, status=status_code)
+                    return Response(json.dumps({"status": "error", "message": f"Server error: {status_code}", "details": res_data}), headers=headers, status=status_code)
                 
                 listings = res_data if isinstance(res_data, list) else res_data.get("data", res_data.get("gifts", []))
                 
+                # --- پردازش صفحه‌بندی (Pagination) ---
+                query = url.split("?")[1] if "?" in url else ""
+                offset = 0
+                limit = 50
+                for param in query.split("&"):
+                    if param.startswith("offset="): offset = int(param.split("=")[1])
+                    if param.startswith("limit="): limit = int(param.split("=")[1])
+                
+                paginated_listings = listings[offset:offset+limit]
+                
                 result, seen_links = [], set()
-                for gift in listings:
+                for gift in paginated_listings:
                     name = gift.get('name', gift.get('title', 'Unknown'))
                     price = gift.get('price', gift.get('price_ton', 0))
                     tg_id = gift.get('tg_id', gift.get('id', ''))
@@ -141,6 +172,7 @@ class Default(WorkerEntrypoint):
                     bg_color = COLOR_MAP.get(color_name, "#1c1c1e")
                     
                     result.append({"name": name, "price": price, "link": link, "image_url": img_url, "bg_color": bg_color})
+                    
                 return Response(json.dumps({"status": "success", "data": result}), headers=headers)
 
             elif path == "/api/timer" and method == "GET":
@@ -173,7 +205,7 @@ class Default(WorkerEntrypoint):
                             referrer_data["rewards_earned"] += INVITE_REWARD
                             await save_user_data(self.env, referrer_id, referrer_data)
 
-                await send_telegram_message(f"🚪 ورود جدید:\n👤 {first_name}\n🆔 {user_id}\n💰 {user_data['balance']:.2f} TON")
+                await send_telegram_message(self.env, f"🚪 ورود جدید:\n👤 {first_name}\n🆔 {user_id}\n💰 {user_data['balance']:.2f} TON")
                 return Response(json.dumps({"status": "success", "balance": user_data["balance"], "can_withdraw": check_can_withdraw(user_data), "user_data": user_data}), headers=headers)
 
             elif path == "/api/user/balance" and method == "GET":
