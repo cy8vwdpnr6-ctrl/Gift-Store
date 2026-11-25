@@ -3,9 +3,6 @@ from datetime import datetime, timezone
 from workers import WorkerEntrypoint, Response
 from js import fetch as js_fetch, Object, Headers
 
-# =========================================================
-# تنظیمات اولیه
-# =========================================================
 BOT_USERNAME = "NftsHubbot" 
 INVITE_REWARD = 0.5           
 MIN_DEPOSIT_FOR_WITHDRAW = 1.0  
@@ -18,12 +15,8 @@ COLOR_MAP = {
     "Crimson Red": "#990000", "Gold": "#FFD700"
 }
 
-# =========================================================
-# تابع کمکی اصلاح شده برای Fetch در محیط Cloudflare
-# =========================================================
 async def cf_fetch_json(url, method="GET", headers=None, body=None):
     try:
-        # تبدیل دیکشنری پایتون به آبجکت‌های جاوااسکریپت که Cloudflare می‌فهمد
         js_headers = Headers.new()
         if headers:
             for key, value in headers.items():
@@ -38,10 +31,7 @@ async def cf_fetch_json(url, method="GET", headers=None, body=None):
             opts.body = json.dumps(body)
             js_headers.append("Content-Type", "application/json")
         
-        # اجرای درخواست
         res = await js_fetch(url, opts)
-        
-        # خواندن متن پاسخ
         text = await res.text()
         status = res.status
         
@@ -54,10 +44,6 @@ async def cf_fetch_json(url, method="GET", headers=None, body=None):
         print(f"Fetch Error: {str(e)}")
         return {"status": "error", "message": str(e)}, 500
 
-
-# =========================================================
-# توابع دیتابیس (KV)
-# =========================================================
 async def save_to_kv(env, key: str, value: str):
     try:
         await env.MY_KV_NAMESPACE.put(key, value)
@@ -91,9 +77,7 @@ async def send_telegram_message(env, text: str):
     bot_token = env.TELEGRAM_BOT_TOKEN
     chat_id = env.YOUR_CHAT_ID
     if not bot_token or not chat_id:
-        print("Telegram tokens missing in ENV")
         return
-        
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
     try:
@@ -106,9 +90,6 @@ def check_can_withdraw(user_data: dict) -> bool:
            (user_data["total_purchases"] > 0) or \
            (user_data["total_deposited"] >= MIN_DEPOSIT_FOR_WITHDRAW)
 
-# =========================================================
-# کلاس اصلی ورکر
-# =========================================================
 class Default(WorkerEntrypoint):
     def __init__(self, env, ctx):
         super().__init__(env, ctx)
@@ -118,7 +99,6 @@ class Default(WorkerEntrypoint):
         url = request.url
         method = request.method
         
-        # استخراج مسیر
         path = url.split("?")[0].replace("https://", "").replace("http://", "")
         path = "/" + path.split("/", 1)[1] if "/" in path else "/"
         
@@ -146,7 +126,6 @@ class Default(WorkerEntrypoint):
                 
                 listings = res_data if isinstance(res_data, list) else res_data.get("data", res_data.get("gifts", []))
                 
-                # --- پردازش صفحه‌بندی (Pagination) ---
                 query = url.split("?")[1] if "?" in url else ""
                 offset = 0
                 limit = 50
