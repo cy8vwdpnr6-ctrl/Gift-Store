@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from workers import asgi  # <-- این import ضروری است
+from workers import asgi
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -82,15 +82,13 @@ async def send_telegram_message(text: str):
 FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
 
 # =========================================================
-# سرو کردن فرانت‌اند (index.html)
+# سرو کردن فرانت‌اند (به صورت موقت برای تست بیلد)
 # =========================================================
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
-    try:
-        with open("index.html", "r", encoding="utf-8") as f:
-            return f.read()
-    except Exception:
-        return "<h1>index.html not found!</h1>"
+    # در محیط Cloudflare Workers خواندن فایل با open() کار نمی‌کند.
+    # این بخش را موقتاً به یک پیام ساده تغییر دادیم تا بیلد موفق شود.
+    return "<h1>Backend is Running! (HTML will be loaded via Assets)</h1>"
 
 # =========================================================
 # API ها
@@ -260,5 +258,5 @@ async def request_withdraw(request: Request):
 # =========================================================
 # Entrypoint برای Cloudflare Workers
 # =========================================================
-# فقط از این روش استفاده کنید و کلاس Default را جداگانه تعریف نکنید.
+# فقط این خط برای اتصال FastAPI به Cloudflare Workers کافی است
 Default = asgi.entrypoint(app)
