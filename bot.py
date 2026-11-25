@@ -24,7 +24,7 @@ COLOR_MAP = {
 }
 
 # =========================================================
-# توابع دیتابیس (KV) - اصلاح‌شده با env
+# توابع دیتابیس (KV) - اصلاح‌شده
 # =========================================================
 async def save_to_kv(env, key: str, value: str):
     try:
@@ -72,9 +72,13 @@ def check_can_withdraw(user_data: dict) -> bool:
            (user_data["total_deposited"] >= MIN_DEPOSIT_FOR_WITHDRAW)
 
 # =========================================================
-# کلاس اصلی ورکر (بدون FastAPI)
+# کلاس اصلی ورکر (بدون FastAPI - استاندارد جدید)
 # =========================================================
 class Default(WorkerEntrypoint):
+    def __init__(self, env, ctx):
+        super().__init__(env, ctx)
+        self.env = env
+
     async def fetch(self, request):
         url = request.url
         method = request.method
