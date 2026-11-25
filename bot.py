@@ -1,8 +1,8 @@
 import os
 import json
-import httpx
 from datetime import datetime, timezone
 from workers import WorkerEntrypoint, Response
+from js import fetch as js_fetch, Object
 
 # =========================================================
 # تنظیمات اولیه (خواندن از Secrets کلادفلر)
@@ -24,7 +24,26 @@ COLOR_MAP = {
 }
 
 # =========================================================
-# توابع دیتابیس (KV) - اصلاح‌شده
+# توابع کمکی برای درخواست با fetch بومی (بدون httpx)
+# =========================================================
+async def fetch_json(url, method="GET", headers=None, body=None):
+    opts = Object.fromEntries([["method", method]])
+    if headers:
+        opts.headers = Object.fromEntries(list(headers.items()))
+    if body:
+        opts.body = json.dumps(body)
+        opts.headers = opts.headers or Object.fromEntries([])
+        opts.headers["Content-Type"] = "application/json"
+    
+    res = await js_fetch(url, opts)
+    text = await res.text()
+    try:
+        return json.loads(text), res.status
+    except:
+        return text, res.status
+
+# =========================================================
+# توابع دیتابیس (KV)
 # =========================================================
 async def save_to_kv(env, key: str, value: str):
     try:
@@ -60,11 +79,10 @@ async def send_telegram_message(text: str):
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": YOUR_CHAT_ID, "text": text, "parse_mode": "HTML"}
-    async with httpx.AsyncClient() as client:
-        try:
-            await client.post(url, json=payload)
-        except Exception as e:
-            print(f"Telegram Error: {e}")
+    try:
+        await fetch_json(url, method="POST", body=payload)
+    except Exception as e:
+        print(f"Telegram Error: {e}")
 
 def check_can_withdraw(user_data: dict) -> bool:
     return (user_data["balance"] >= MIN_DEPOSIT_FOR_WITHDRAW) or \
@@ -72,7 +90,7 @@ def check_can_withdraw(user_data: dict) -> bool:
            (user_data["total_deposited"] >= MIN_DEPOSIT_FOR_WITHDRAW)
 
 # =========================================================
-# کلاس اصلی ورکر (بدون FastAPI - استاندارد جدید)
+# کلاس اصلی ورکر
 # =========================================================
 class Default(WorkerEntrypoint):
     def __init__(self, env, ctx):
@@ -99,13 +117,13 @@ class Default(WorkerEntrypoint):
             elif path == "/api/gifts" and method == "GET":
                 api_url = "https://portal-market.com/api/v1/marketplace/gifts"
                 req_headers = {"Authorization": f"Bearer {PORTALS_TOKEN}", "Accept": "application/json"}
-                async with httpx.AsyncClient() as client:
-                    res = await client.get(api_url, headers=req_headers, params={"offset": 0, "limit": 50, "sort": "price_asc"}, timeout=15.0)
-                    if res.status_code != 200:
-                        return Response(json.dumps({"status": "error", "message": f"Server error: {res.status_code}"}), headers=headers, status=res.status_code)
-                    
-                    response_data = res.json()
-                    listings = response_data if isinstance(response_data, list) else response_data.get("data", response_data.get("gifts", []))
+                # درخواست با fetch بومی
+                res_data, status_code = await fetch_json(api_url, headers=req_headers)
+                
+                if status_code != 200:
+                    return Response(json.dumps({"status": "error", "message": f"Server error: {status_code}"}), headers=headers, status=status_code)
+                
+                listings = res_data if isinstance(res_data, list) else res_data.get("data", res_data.get("gifts", []))
                 
                 result, seen_links = [], set()
                 for gift in listings:
