@@ -5,9 +5,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-
-# برای Cloudflare Workers
-from workers import WorkerEntrypoint
+from workers import asgi  # <-- این import ضروری است
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -89,12 +87,10 @@ FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
     try:
-        # در محیط Cloudflare Workers، خواندن فایل به این شکل کار نمی‌کند
-        # باید از Assets یا KV استفاده کنید. اما برای سادگی، فرض می‌کنیم فایل موجود است.
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except Exception:
-        return "<h1>index.html not found or cannot be read in this environment!</h1>"
+        return "<h1>index.html not found!</h1>"
 
 # =========================================================
 # API ها
@@ -176,7 +172,6 @@ async def webapp_login(request: Request):
         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         user_data = await get_user_data(user_id)
 
-        # منطق رفرال (به اختصار)
         if start_param:
             referrer_id = start_param.replace("ref_", "") if start_param.startswith("ref_") else start_param
             if referrer_id.isdigit() and referrer_id != user_id and user_data.get("invited_by") is None:
@@ -265,7 +260,5 @@ async def request_withdraw(request: Request):
 # =========================================================
 # Entrypoint برای Cloudflare Workers
 # =========================================================
-class Default(WorkerEntrypoint):
-    async def fetch(self, request):
-        # این بخش، درخواست‌های Cloudflare را به FastAPI پاس می‌دهد
-        return await app(request)
+# فقط از این روش استفاده کنید و کلاس Default را جداگانه تعریف نکنید.
+Default = asgi.entrypoint(app)
