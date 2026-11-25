@@ -3,9 +3,9 @@ import json
 import httpx
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from workers import WorkerEntrypoint, Response
+from workers import asgi
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -82,7 +82,16 @@ async def send_telegram_message(text: str):
 FIXED_END_TIME = "2026-11-28T23:59:59+00:00"
 
 # =========================================================
-# API ها (FastAPI Routes)
+# سرو کردن فرانت‌اند (به صورت موقت برای تست بیلد)
+# =========================================================
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    # در محیط Cloudflare Workers خواندن فایل با open() کار نمی‌کند.
+    # بعد از موفقیت بیلد، از Static Assets استفاده خواهیم کرد.
+    return "<h1>Backend is Running! (HTML will be loaded via Assets)</h1>"
+
+# =========================================================
+# API ها
 # =========================================================
 @app.get("/api/gifts")
 async def get_gifts_api(offset: int = 0, limit: int = 50):
@@ -234,11 +243,6 @@ async def request_withdraw(request: Request):
         return {"status": "error", "message": str(e)}
 
 # =========================================================
-# Entrypoint استاندارد و تضمینی برای Cloudflare Workers
+# تنها نقطه ورود مجاز (Entrypoint) برای FastAPI
 # =========================================================
-class Default(WorkerEntrypoint):
-    async def fetch(self, request):
-        # تبدیل درخواست Cloudflare به درخواست ASGI برای FastAPI
-        from workers import asgi
-        asgi_handler = asgi.entrypoint(app)
-        return await asgi_handler.fetch(request)
+Default = asgi.entrypoint(app)
