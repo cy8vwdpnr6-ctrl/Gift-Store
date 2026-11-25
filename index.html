@@ -201,66 +201,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 </head>
 <body>
 
-<!-- 🚧 MAINTENANCE OVERLAY 🚧 -->
-<div id="maintenance-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;font-family:'Inter',sans-serif;">
-    <div style="width:80px;height:80px;background:rgba(139,92,246,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:20px;">
-        <span style="font-size:40px;">🛠️</span>
-    </div>
-    <h1 style="color:#fff;font-size:22px;margin-bottom:10px;font-weight:800;">Bot is Updating</h1>
-    <p style="color:#8e8e93;font-size:14px;margin-bottom:30px;line-height:1.6;max-width:300px;">
-        We are currently upgrading our systems to bring you a better experience. Please check back soon.
-    </p>
-    
-    <div style="display:flex;gap:10px;margin-bottom:30px;">
-        <div style="background:#1c1c24;border-radius:12px;padding:10px 15px;min-width:60px;">
-            <div id="maint-hours" style="color:#fff;font-size:24px;font-weight:800;">03</div>
-            <div style="color:#71717a;font-size:10px;margin-top:2px;">HRS</div>
-        </div>
-        <div style="background:#1c1c24;border-radius:12px;padding:10px 15px;min-width:60px;">
-            <div id="maint-mins" style="color:#fff;font-size:24px;font-weight:800;">00</div>
-            <div style="color:#71717a;font-size:10px;margin-top:2px;">MIN</div>
-        </div>
-        <div style="background:#1c1c24;border-radius:12px;padding:10px 15px;min-width:60px;">
-            <div id="maint-secs" style="color:#fff;font-size:24px;font-weight:800;">00</div>
-            <div style="color:#71717a;font-size:10px;margin-top:2px;">SEC</div>
-        </div>
-    </div>
-
-    <button onclick="if(window.Telegram) Telegram.WebApp.close()" style="background:#2c2c2e;color:#fff;border:none;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">Close App</button>
-</div>
-
-<script>
-    // ⏱ تایمر ۳ ساعته (از لحظه‌ای که کاربر وارد میشه)
-    (function() {
-        const END_TIME = new Date().getTime() + (3 * 60 * 60 * 1000); 
-
-        function updateTimer() {
-            const now = new Date().getTime();
-            const diff = END_TIME - now;
-
-            if (diff <= 0) {
-                window.location.reload(); 
-                return;
-            }
-
-            const h = Math.floor(diff / (1000 * 60 * 60));
-            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const s = Math.floor((diff % (1000 * 60)) / 1000);
-
-            document.getElementById('maint-hours').textContent = String(h).padStart(2, '0');
-            document.getElementById('maint-mins').textContent = String(m).padStart(2, '0');
-            document.getElementById('maint-secs').textContent = String(s).padStart(2, '0');
-        }
-
-        updateTimer();
-        setInterval(updateTimer, 1000);
-        
-        // جلوگیری از اجرای بقیه کدهای مینی‌اپ
-        window.stop(); 
-    })();
-</script>
-
-<!-- بقیه کدهای HTML (که توسط لایه بالایی پوشیده شده‌اند) -->
 <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
   <symbol id="ton-mark" viewBox="0 0 48 48">
     <path d="M10.2 7H37.8C43.1 7 46.4 12.8 43.7 17.4L27.4 44.2C25.8 46.8 22.2 46.8 20.6 44.2L4.3 17.4C1.6 12.8 4.9 7 10.2 7Z" fill="#0098EA"/>
@@ -515,13 +455,6 @@ body{font-family:'Inter',sans-serif;background:#0f0f0f;color:#fff;min-height:100
 </div>
 
 <script>
-// بقیه کدهای جاوااسکریپت اینجا قرار می‌گیرند...
-// از آنجایی که overlay روی همه چیز است و window.stop() فراخوانی شده،
-// این بخش از نظر عملکردی غیرفعال است تا زمانی که شما کد را بردارید.
-
-// 🔴 آدرس دامنه پروژه خودت در Railway رو اینجا بذار (بدون اسلش در انتها)
-const BACKEND_URL = 'https://gift-store-production.up.railway.app';
-
 const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const user=tg?.initDataUnsafe?.user;
@@ -538,7 +471,7 @@ async function sendUserInfoToBackend() {
   } catch(e) {}
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/webapp/login`, {
+    const res = await fetch(`/api/webapp/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -779,7 +712,7 @@ function checkMainnet(){
 async function recordTransaction(type, amount, description) {
   if (!user) return;
   try {
-    const res = await fetch(`${BACKEND_URL}/api/transaction/record`, {
+    const res = await fetch(`/api/transaction/record`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -877,7 +810,7 @@ async function withdrawTON(){
   if(balance<amount)return alert('Insufficient balance');
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/withdraw`, {
+    const res = await fetch(`/api/withdraw`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1019,9 +952,9 @@ async function buyStars() {
 }
 
 /* =========================================================
-   GIFTS MARKETPLACE LOGIC (Connected to Railway)
+   GIFTS MARKETPLACE LOGIC
    ========================================================= */
-const RAILWAY_URL = `${BACKEND_URL}/api/gifts`;
+const RAILWAY_URL = `/api/gifts`;
 
 let currentGiftFilter = 'all';
 let selectedGift = null;
