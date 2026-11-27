@@ -108,7 +108,7 @@ def cors_headers():
 
 
 # =========================================================
-# Worker اصلی (استایل جدید و استاندارد Cloudflare)
+# Worker اصلی
 # =========================================================
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
@@ -136,7 +136,7 @@ class Default(WorkerEntrypoint):
                 portals_token = getattr(env, "PORTALS_TOKEN", None)
                 if not portals_token:
                     return Response(
-                        json.dumps({"status": "error", "message": "PORTALS_TOKEN is not set"}),
+                        json.dumps({"status": "error", "message": "PORTALS_TOKEN is not set in Cloudflare Variables."}),
                         headers=headers, status=500
                     )
 
